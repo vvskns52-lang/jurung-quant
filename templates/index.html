@@ -1,0 +1,3479 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <script>
+    // 🚨 원격 브라우저 JS 디버깅 전용 에러 감지기 (오류 발생 시 화면에 즉시 Alert 팝업)
+    window.onerror = function(message, source, lineno, colno, error) {
+      alert("🚨 브라우저 자바스크립트 오류 감지!\n\n오류 내용: " + message + "\n출처: " + source + "\n라인: " + lineno + "\n상세 스택: " + (error ? error.stack : "없음"));
+      return false;
+    };
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <title>Joorung Quant</title>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((reg) => console.log('Service Worker Registered!', reg))
+          .catch((err) => console.log('Service Worker Registration Failed:', err));
+      });
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Pretendard:wght@400;600;700&display=swap');
+
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: 'Pretendard', sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .terminal-container {
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .header {
+      border-bottom: 2px solid #1e293b;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+    }
+
+    .title-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .fx-rate {
+      font-size: 13px;
+      color: #38bdf8;
+      background: #0c4a6e;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #0369a1;
+      font-family: 'JetBrains Mono';
+      font-weight: 700;
+    }
+
+    .fx-rate-btn {
+      cursor: pointer;
+      text-align: center;
+      user-select: none;
+      transition: all 0.2s ease;
+      font-family: 'Pretendard', sans-serif !important;
+    }
+    .fx-rate-btn:hover {
+      background: #0369a1;
+      border-color: #38bdf8;
+      color: #fff;
+    }
+
+    .sentiment-badge {
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-family: 'Pretendard';
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tab-menu {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 5px;
+    }
+
+    .tab-btn {
+      background: #1e293b;
+      color: #94a3b8;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      font-family: 'JetBrains Mono';
+      white-space: nowrap;
+      transition: 0.2s;
+    }
+
+    .tab-btn.active {
+      background: #38bdf8;
+      color: #020617;
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .summary-stats {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      font-family: 'JetBrains Mono';
+    }
+
+    .stat-box {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      padding: 15px;
+      border-radius: 8px;
+      flex: 1;
+      min-width: 180px;
+      text-align: center;
+      position: relative;
+    }
+
+    .stat-box .label {
+      color: #94a3b8;
+      font-size: 11px;
+      display: block;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .stat-box .value-usd {
+      font-size: 22px;
+      font-weight: bold;
+      margin: 0;
+      color: #f8fafc;
+    }
+
+    .stat-box .value-krw {
+      font-size: 13px;
+      margin: 4px 0 0 0;
+      color: #64748b;
+    }
+
+    #mdd-info-box {
+      display: none;
+      position: absolute;
+      top: 105%;
+      left: 0;
+      width: 100%;
+      background: #451a03;
+      border: 1px solid #ef4444;
+      padding: 14px;
+      border-radius: 8px;
+      text-align: left;
+      z-index: 100;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #fca5a5;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+      font-family: 'Pretendard';
+    }
+
+    .charts-container {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .chart-box {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      flex: 1;
+      min-width: 300px;
+      height: 340px;
+      position: relative;
+    }
+
+    .chart-title {
+      font-size: 13px;
+      color: #94a3b8;
+      font-weight: bold;
+      margin-bottom: 15px;
+      text-align: center;
+      font-family: 'JetBrains Mono';
+    }
+
+    .index-card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      padding: 12px 18px;
+      border-radius: 8px;
+      flex: 1;
+      min-width: 140px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono';
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .index-card:hover {
+      transform: translateY(-3px);
+      border-color: #38bdf8;
+      background: #1e293b;
+    }
+
+    .period-selector {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      display: flex;
+      gap: 5px;
+      z-index: 10;
+    }
+
+    .p-btn {
+      background: #1e293b;
+      color: #64748b;
+      border: 1px solid #334155;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: 'JetBrains Mono';
+    }
+
+    .p-btn.active {
+      background: #38bdf8;
+      color: #020617;
+      border-color: #38bdf8;
+      font-weight: bold;
+    }
+
+    .simulator-box {
+      background: linear-gradient(135deg, #0f172a, #1e1b4b);
+      border: 1px solid #4338ca;
+      border-radius: 12px;
+      padding: 25px;
+    }
+
+    .sim-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .sim-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sim-input-group label {
+      font-size: 13px;
+      color: #a5b4fc;
+      font-weight: bold;
+    }
+
+    .sim-input-group input,
+    .sim-input-group select {
+      background: #1e1b4b;
+      border: 1px solid #4338ca;
+      color: white;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono';
+      font-size: 15px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .sim-btn {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      align-self: flex-end;
+      height: 47px;
+      transition: 0.2s;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .sim-btn:hover {
+      background: #4f46e5;
+      transform: translateY(-1px);
+    }
+
+    #sim-result {
+      margin-top: 25px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 20px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono';
+      font-size: 15px;
+      display: none;
+      line-height: 1.7;
+      border-left: 4px solid #818cf8;
+      color: #e0e7ff;
+    }
+
+    .add-form {
+      background: #0f172a;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      border: 1px solid #334155;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .add-form input,
+    .add-form select {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: white;
+      padding: 10px;
+      border-radius: 6px;
+      width: 100%;
+      font-family: inherit;
+    }
+
+    .add-form button {
+      background: #38bdf8;
+      color: #020617;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+      font-family: 'JetBrains Mono';
+    }
+
+    .card {
+      background-color: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: transparent;
+      color: #f87171;
+      border: 1px solid #f87171;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      padding: 2px 6px;
+    }
+
+    .stock-name {
+      font-size: 18px;
+      font-weight: bold;
+      color: #f8fafc;
+      margin-bottom: 2px;
+      display: block;
+      font-family: 'Pretendard';
+    }
+
+    .stock-sector {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .profit {
+      color: #4ade80;
+    }
+
+    .loss {
+      color: #f87171;
+    }
+
+    .filter-btn {
+      background: transparent;
+      color: #64748b;
+      border: 1px solid #334155;
+      padding: 6px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: 'Pretendard';
+      transition: all 0.2s;
+    }
+
+    .filter-btn.active {
+      background: #38bdf8;
+      color: #020617;
+      border-color: #38bdf8;
+      font-weight: bold;
+    }
+
+    .news-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .news-item {
+      display: flex;
+      flex-direction: column;
+      background: #0f172a;
+      border-left: 4px solid #334155;
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .news-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-family: 'JetBrains Mono';
+    }
+
+    .news-badge {
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      border: 1px solid #334155;
+    }
+
+    .news-source {
+      color: #94a3b8;
+      font-weight: bold;
+    }
+
+    .news-date {
+      color: #64748b;
+      margin-left: auto;
+    }
+
+    .news-title {
+      color: #f8fafc;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.5;
+      font-family: 'Pretendard';
+    }
+
+    .news-item:hover {
+      border-left-color: #38bdf8;
+      background: #1e293b;
+      transform: translateX(5px);
+    }
+
+    .news-item:hover .news-title {
+      color: #38bdf8;
+    }
+
+    .ai-btn {
+      background: linear-gradient(90deg, #8b5cf6, #3b82f6);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Pretendard';
+    }
+
+    #ai-result-box {
+      background: #1e1b4b;
+      border: 1px solid #4c1d95;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: none;
+      line-height: 1.6;
+      color: #e0e7ff;
+    }
+
+    .ai-title {
+      color: #a78bfa;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .chart-content {
+      display: block;
+    }
+
+    .chart-toggle-icon {
+      display: none;
+    }
+
+    .search-bar-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* 모바일 스마트폰 화면 최적화 (반응형) */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      .header>div {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 12px;
+      }
+
+      .title-area {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+      }
+
+      h1 {
+        font-size: 20px;
+        text-align: center;
+      }
+
+      .fx-rate,
+      .sentiment-badge {
+        font-size: 12px;
+        text-align: center;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .header div[style*="display: flex; gap: 10px; align-items: center;"] {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .ai-btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .summary-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .stat-box {
+        min-width: 0;
+        padding: 10px;
+      }
+
+      .stat-box .value-usd {
+        font-size: 16px;
+      }
+
+      .stat-box .value-krw {
+        font-size: 11px;
+      }
+
+      .add-box form {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+      }
+
+      .add-box form div {
+        width: 100% !important;
+      }
+
+      .add-box form button {
+        width: 100%;
+        margin-top: 5px;
+      }
+
+      .sim-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      .sim-grid div[style*="grid-column: span 2"] {
+        grid-column: span 1 !important;
+      }
+
+      .chart-box {
+        min-width: 100%;
+        padding: 12px;
+      }
+
+      .charts-container .chart-box {
+        height: auto !important;
+      }
+
+      .search-bar-row {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px;
+      }
+
+      .search-bar-row button {
+        width: 100%;
+      }
+
+      .chart-title {
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #1e293b;
+        padding: 10px 14px;
+        border-radius: 8px;
+        margin-bottom: 0 !important;
+      }
+
+      .chart-toggle-icon {
+        display: inline-block;
+        font-size: 11px;
+        color: #38bdf8;
+        background: #0c4a6e;
+        padding: 3px 8px;
+        border-radius: 4px;
+        border: 1px solid #0369a1;
+        font-family: 'Pretendard';
+      }
+
+      .chart-content {
+        margin-top: 15px;
+        height: 300px;
+      }
+
+      .chart-content.collapsed {
+        height: 0 !important;
+        overflow: hidden;
+        margin-top: 0 !important;
+      }
+    }
+
+    /* 🕯️ 마켓 지수 및 팝업 모달 전용 미려한 스타일 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(2, 6, 23, 0.85);
+      backdrop-filter: blur(12px);
+      display: none; /* display: flex 대신 none 으로 기본 차단하여 다른 영역 클릭 방해 해결 */
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .modal-overlay.active {
+      display: flex; /* 활성화 시에만 플렉스 박스로 노출 */
+    }
+
+    .modal-window {
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 900px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+      position: relative;
+    }
+
+    .modal-overlay.active .modal-window {
+      /* 단순 노출 */
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 12px;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Pretendard';
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 28px;
+      cursor: pointer;
+      transition: 0.2s;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: #f8fafc;
+      transform: rotate(90deg);
+    }
+
+    .chart-container-modal {
+      width: 100%;
+      height: 450px;
+      background: #020617;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+      overflow: hidden;
+      position: relative;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ☀️ 라이트 모드 테마 오버라이드 */
+    body.light-theme {
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+    body.light-theme h1 {
+      color: #0f172a;
+    }
+    body.light-theme .header {
+      border-bottom: 2px solid #cbd5e1;
+    }
+    body.light-theme .tab-btn {
+      background: #cbd5e1;
+      color: #475569;
+    }
+    body.light-theme .tab-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+    }
+    body.light-theme .stat-box {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    body.light-theme .stat-box .label {
+      color: #475569;
+    }
+    body.light-theme .stat-box .value-usd {
+      color: #0f172a;
+    }
+    body.light-theme .stat-box .value-krw {
+      color: #64748b;
+    }
+    body.light-theme .index-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+    }
+    body.light-theme .index-card span[style*="color: #f8fafc;"] {
+      color: #0f172a !important;
+    }
+    body.light-theme .index-card:hover {
+      background: #f8fafc;
+      border-color: #0284c7;
+    }
+    body.light-theme .chart-box {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+    }
+    body.light-theme .chart-title {
+      color: #475569;
+    }
+    body.light-theme .card {
+      background-color: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+    body.light-theme .stock-name {
+      color: #0f172a !important;
+    }
+    body.light-theme .stock-sector {
+      color: #64748b !important;
+    }
+    body.light-theme .data-row {
+      color: #334155 !important;
+    }
+    body.light-theme .data-row span[style*="color: #94a3b8;"],
+    body.light-theme .data-row span[style*="color: rgb(148, 163, 184)"],
+    body.light-theme .data-row span[style*="color: #64748b;"] {
+      color: #475569 !important;
+    }
+    body.light-theme .data-row span[style*="color: #f8fafc;"],
+    body.light-theme .data-row span[style*="color: rgb(248, 250, 252)"] {
+      color: #0f172a !important;
+    }
+    body.light-theme .filter-btn {
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+    body.light-theme .filter-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #0284c7;
+    }
+    body.light-theme .add-form {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+    }
+    body.light-theme .add-form input,
+    body.light-theme .add-form select {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      color: #0f172a;
+    }
+    body.light-theme .add-form button {
+      background: #0284c7;
+      color: #ffffff;
+    }
+    body.light-theme .simulator-box {
+      background: linear-gradient(135deg, #ffffff, #f0fdf4) !important;
+      border: 1px solid #86efac !important;
+    }
+    body.light-theme .sim-input-group label {
+      color: #166534 !important;
+    }
+    body.light-theme .sim-input-group input,
+    body.light-theme .sim-input-group select {
+      background: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme .sim-btn {
+      background: #16a34a !important;
+    }
+    body.light-theme .sim-btn:hover {
+      background: #15803d !important;
+    }
+    body.light-theme #sim-result {
+      background: rgba(255, 255, 255, 0.8) !important;
+      border-left: 4px solid #16a34a !important;
+      color: #166534 !important;
+    }
+    body.light-theme #ai-result-box {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+    }
+    body.light-theme .ai-title {
+      color: #0f172a;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    body.light-theme .modal-window {
+      background: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme .modal-title {
+      color: #0f172a !important;
+    }
+    body.light-theme .modal-body {
+      color: #334155 !important;
+    }
+    body.light-theme .modal-period-btn,
+    body.light-theme .modal-type-btn {
+      background: #e2e8f0;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+    body.light-theme .modal-period-btn:hover,
+    body.light-theme .modal-type-btn:hover {
+      background: #cbd5e1;
+      color: #0f172a;
+    }
+    body.light-theme .modal-period-btn.active,
+    body.light-theme .modal-type-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #0284c7;
+    }
+    body.light-theme #modal-chart-area {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+    }
+    body.light-theme .ai-report-box-modal {
+      background: #f8fafc !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme .fx-rate {
+      color: #0369a1;
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+    }
+    body.light-theme .fx-rate-btn:hover {
+      background: #bae6fd;
+      border-color: #0284c7;
+      color: #0369a1;
+    }
+    body.light-theme .sentiment-badge {
+      border: 1px solid #cbd5e1;
+    }
+    body.light-theme #mdd-info-box {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    }
+    body.light-theme .settings-panel {
+      background: #ffffff !important;
+      border-left: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme .settings-panel h3 {
+      color: #0f172a !important;
+    }
+    body.light-theme .settings-input {
+      background: #f8fafc !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme #settings-modal > div {
+      background: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+    body.light-theme #settings-modal h2 {
+      color: #0f172a !important;
+    }
+    body.light-theme #settings-modal label {
+      color: #475569 !important;
+    }
+    body.light-theme #settings-modal input {
+      background: #f8fafc !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme #settings-modal button[onclick="saveSettings()"] {
+      background: #0284c7 !important;
+      color: #ffffff !important;
+    }
+    body.light-theme #stock-chart-modal > div {
+      background: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+    body.light-theme #stock-chart-modal h2,
+    body.light-theme #stock-chart-modal h3 {
+      color: #0f172a !important;
+    }
+    body.light-theme #stock-chart-modal ul {
+      color: #475569 !important;
+    }
+
+    body.light-theme #ai-report-zoom-modal > div {
+      background: #ffffff !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme #ai-report-zoom-modal h2 {
+      color: #0f172a !important;
+    }
+    body.light-theme #ai-report-zoom-modal div,
+    body.light-theme #ai-report-zoom-modal span,
+    body.light-theme #ai-report-zoom-modal p,
+    body.light-theme #ai-report-zoom-modal li {
+      color: #334155 !important;
+    }
+    body.light-theme #zoom-modal-body {
+      background: #f8fafc !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #334155 !important;
+    }
+
+    /* 라이트 모드 추가 세부 교정 */
+    body.light-theme div[style*="background: rgba(30, 41, 59, 0.7)"] {
+      background: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme div[style*="background: rgba(30, 41, 59, 0.7)"] div {
+      color: #0f172a !important;
+    }
+    body.light-theme div[style*="background: #0f172a"],
+    body.light-theme div[style*="background:#0f172a"] {
+      background: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme div[style*="background: #0f172a"] div,
+    body.light-theme div[style*="background: #0f172a"] span,
+    body.light-theme div[style*="background: #0f172a"] p,
+    body.light-theme div[style*="background: #0f172a"] h2,
+    body.light-theme div[style*="background: #0f172a"] h3 {
+      color: #0f172a !important;
+    }
+    body.light-theme div[style*="background: #020617"],
+    body.light-theme div[style*="background:#020617"] {
+      background: #f8fafc !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme div[style*="background: #020617"] div,
+    body.light-theme div[style*="background: #020617"] span,
+    body.light-theme div[style*="background: #020617"] p,
+    body.light-theme div[style*="background: #020617"] li {
+      color: #0f172a !important;
+    }
+    body.light-theme div[style*="background: rgba(2, 6, 23, 0.9)"] {
+      background: rgba(255, 255, 255, 0.95) !important;
+    }
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #1e1b4b)"] {
+      background: linear-gradient(135deg, #ffffff, #f5f3ff) !important;
+      border-color: #c084fc !important;
+      color: #0f172a !important;
+    }
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #112230)"] {
+      background: linear-gradient(135deg, #ffffff, #f0f9ff) !important;
+      border-color: #7dd3fc !important;
+      color: #0f172a !important;
+    }
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #1e1b4b)"] div,
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #1e1b4b)"] span,
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #1e1b4b)"] p,
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #1e1b4b)"] h2,
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #1e1b4b)"] h3 {
+      color: #4c1d95 !important;
+    }
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #112230)"] div,
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #112230)"] span,
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #112230)"] p,
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #112230)"] h2,
+    body.light-theme div[style*="background: linear-gradient(135deg, #0f172a, #112230)"] h3 {
+      color: #0369a1 !important;
+    }
+    body.light-theme #stock-chart-modal div,
+    body.light-theme #stock-chart-modal span,
+    body.light-theme #stock-chart-modal p,
+    body.light-theme #stock-chart-modal li {
+      color: #334155 !important;
+    }
+    body.light-theme #ai-text {
+      color: #334155 !important;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- 🔍 AI 리포트 확대 모달 -->
+  <div id="ai-report-zoom-modal" class="modal-overlay" onclick="closeAiReportZoomModal(event)" style="z-index: 20000;">
+    <div class="modal-window" onclick="event.stopPropagation()" style="max-width: 800px; width: 90%;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🤖</span> <span id="zoom-modal-title">AI 상세 진단 리포트</span>
+        </div>
+        <button class="modal-close" onclick="closeAiReportZoomModal(null, true)">×</button>
+      </div>
+      <div id="zoom-modal-body" class="ai-report-box-modal" style="padding: 20px; color: #cbd5e1; font-family: 'Pretendard'; font-size: 14px; line-height: 1.7; max-height: 70vh; overflow-y: auto; background: #020617; border-radius: 8px; border: 1px solid #1e293b;">
+        <!-- 리포트 본문이 그대로 복사되어 렌더링됨 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 💡 서비스 가이드 모달 -->
+  <div id="service-guide-modal" class="modal-overlay" onclick="closeServiceGuideModal(event)">
+    <div class="modal-window" onclick="event.stopPropagation()" style="max-width: 800px; width: 90%;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>💡</span> <span>알파 터미널 지표 및 사용 가이드</span>
+        </div>
+        <button class="modal-close" onclick="closeServiceGuideModal(null, true)">×</button>
+      </div>
+      <div class="modal-body" style="padding: 10px 0; color: #cbd5e1; font-family: 'Pretendard'; font-size: 14px; line-height: 1.6; max-height: 70vh; overflow-y: auto;">
+        <h4 style="color: #38bdf8; font-size: 15px; font-weight: bold; margin-bottom: 12px;">📊 5대 핵심 퀀트 지표 설명</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 25px;">
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">⚡ RS 상대적 주가 강도 (6개월)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">S&P 500 대비 상대적인 성과를 1~99점의 점수로 측정합니다. (85점 이상 주도주, 25점 미만 약세/잡초)</p>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">🏆 MTT 추세 판독 (미너비니)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">마크 미너비니의 8대 성장주 추세 템플릿(정배열 이평선 등)을 기반으로 현재 상승세/횡보/하락세 여부를 진단합니다.</p>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">🔋 추세 에너지 (ADX & DI)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">14일 ADX 및 DI를 기반으로 현재 주가 추세의 에너지 세기 및 매수/매도 수급 집중 국면을 탐지합니다.</p>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">🐋 세력 매집 수급 상태 (20일)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">상승일과 하락일의 거래량 비율을 비교하여, 세력이 적극 매집 중인지(1.25x 이상) 혹은 이탈 분산 중인지 추적합니다.</p>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #a78bfa; font-size: 13px;">🎯 눌림목 골든 시그널</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">주요 지지선 부근에서 거래량이 줄어들며 매수세가 재유입되는 최적 타점(적극매수 등)을 점수로 스캔합니다.</p>
+          </div>
+        </div>
+        
+        <h4 style="color: #38bdf8; font-size: 15px; font-weight: bold; margin-bottom: 12px; margin-top: 25px;">🧭 탭 메뉴별 주요 기능 가이드</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 25px;">
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">📈 대시보드 (Dashboard)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">원금 대비 실시간 잔고 및 수익률, 포트폴리오 MDD를 한눈에 모니터링합니다. 개별 종목 카드를 클릭하면 실시간 차트와 팩터 점수, AI 원클릭 리포트를 바로 조회할 수 있습니다.</p>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">🤖 주렁퀀트 AI 비서 (Jureong AI)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">매일 시장의 국채 금리, 유가, 시장 탐욕 지수를 결합하여 대응 매수 강도를 알려주는 '데일리 마켓 브리핑'과 시장 주도주 중 단 1개의 추천 종목을 상세 분석해 제공하는 '오늘의 Top Pick'을 제공합니다.</p>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">🧭 주도 섹터 풍향계 (Sector Rotation)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">미국 시장의 10대 ETF 데이터를 실시간으로 모니터링하여 최근 1개월간 자금이 가장 몰린 주도 섹터를 1위부터 10위까지 순위화하고, 해당 섹터 내 최우수 대장주 TOP 3를 실시간 산출합니다.</p>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">🔮 자산 시뮬레이터 (Asset Simulator)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">초기 원금, 매월 적립금, 거치 기간, 그리고 연 복리 이율을 대입하여 미래의 자산 규모를 시각화합니다. 특히 '대시보드 원금 포함' 옵션을 활성화하면 현재 계좌를 기준으로 복리 성장 가치를 자동 스캔합니다.</p>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">📊 퀀트 진단 & 최적화 (MPT Optimization)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">현대 포트폴리오 이론(MPT)에 기반하여 포트폴리오의 샤프 지수를 극대화하는 비중 및 자산 위험을 분산하는 최소 분산 포트폴리오 배분율을 원클릭으로 정밀 계산하고, 5대 자산 팩터 레이더차트를 제공합니다.</p>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 15px;">
+            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">📰 뉴스 및 마켓 시황 (News & Market)</span>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 12px; line-height: 1.5;">보유 중인 종목들의 실시간 핵심 개별 뉴스는 물론, 국내 코스피/코스닥 및 글로벌 거시 헤드라인 뉴스를 10분 단위 메모리 캐싱 기술로 크롤링하여 딜레이 없이 실시간 제공합니다.</p>
+          </div>
+        </div>
+        
+        <h4 style="color: #38bdf8; font-size: 15px; font-weight: bold; margin-bottom: 12px;">💡 플랫폼 200% 활용 팁</h4>
+        <ul style="color: #cbd5e1; padding-left: 20px; font-size: 13px; line-height: 1.8; display: flex; flex-direction: column; gap: 6px; margin: 0;">
+          <li>포트폴리오 카드를 클릭하면 가격 차트와 함께 **실시간 퀀트 분석 지표(점수)**가 팝업으로 상세 로드됩니다.</li>
+          <li>차트 모달의 우측에서 **🤖 AI 원클릭 리포트**를 생성하면 구글 Gemini Pro 유료 모델이 실시간 매크로 지표, 금리 스프레드, 유가 추세를 반영한 보고서를 제작합니다.</li>
+          <li>메인 상단의 **⚡ AI 브리핑 & 텔레그램 전송** 버튼 클릭 시, 분석 보고서가 텔레그램으로 무선 발송됩니다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="index-chart-modal" class="modal-overlay" onclick="closeIndexModal(event)">
+    <div class="modal-window" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>📈</span> <span id="modal-index-name">KOSPI</span> <span
+            style="font-size: 13px; color: #94a3b8; font-weight: normal; margin-left: 10px;">실시간 6개월 캔들스틱 분석</span>
+        </div>
+        <button class="modal-close" onclick="closeIndexModal(null, true)">×</button>
+      </div>
+      <div id="modal-chart-area" class="chart-container-modal"></div>
+    </div>
+  </div>
+
+  <div class="terminal-container">
+    <div class="header">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+        <div class="title-area">
+          <h1>JURUNG QUANT</h1>
+          <div class="fx-rate">💵 환율: 1$ = ₩{{ "%.2f"|format(exchange_rate) }}</div>
+          <div class="fx-rate fx-rate-btn" onclick="openServiceGuideModal()">💡 서비스 가이드</div>
+          <div class="sentiment-badge" style="color: {{ sentiment.color }}; background-color: {{ sentiment.bg }};">
+            🔥 마켓 심리: {{ sentiment.text }} ({{ sentiment.score }}점)
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="color: #94a3b8; font-size: 14px; font-weight: bold;">👤 웰컴, <span style="color: #f8fafc;">{{
+              username }}</span>님</div>
+          <button onclick="toggleTheme()" id="theme-toggle-btn"
+            style="background: transparent; color: #94a3b8; border: none; font-size: 18px; cursor: pointer;"
+            title="테마 전환">☀️</button>
+          <button onclick="openSettings()"
+            style="background: transparent; color: #94a3b8; border: none; font-size: 18px; cursor: pointer;"
+            title="설정">⚙️</button>
+          <a href="/logout"
+            style="background: transparent; color: #f87171; border: 1px solid #f87171; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; transition: 0.2s;"
+            onmouseover="this.style.background='rgba(248, 113, 113, 0.1)'"
+            onmouseout="this.style.background='transparent'">로그아웃</a>
+          <button class="ai-btn" id="ai-btn" onclick="requestAIBriefing()">⚡ AI 브리핑 & 텔레그램 전송</button>
+        </div>
+      </div>
+
+      <!-- 🚦 월스트리트 신호등 (시장 날씨) -->
+      <div style="background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); padding: 20px; border-radius: 12px; border-left: 5px solid {{ traffic_light.color }}; border-top: 1px solid rgba(255, 255, 255, 0.05); border-right: 1px solid rgba(255, 255, 255, 0.05); border-bottom: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);">
+        <div>
+            <div style="font-size: 13px; color: #94a3b8; font-weight: bold; margin-bottom: 5px;">🚦 월스트리트 신호등 (시장 날씨)</div>
+            <div style="font-size: 20px; font-weight: bold; color: #f8fafc; font-family: 'Pretendard';">{{ traffic_light.text }}</div>
+            <div style="font-size: 14px; color: #cbd5e1; margin-top: 5px; line-height: 1.5;">{{ traffic_light.desc }}</div>
+        </div>
+      </div>
+
+      <!-- 기존 접이식 가이드는 헤더 환율 박스 밑의 모달 서비스 가이드로 대체됨 -->
+
+      <div id="ai-result-box">
+        <div class="ai-title" onclick="toggleAiBriefingBox()" style="cursor: pointer;">
+          <span>🤖 월스트리트 퀀트 AI '알파'의 분석</span>
+          <span id="ai-fold-btn"
+            style="font-size: 12px; font-weight: bold; background: #4c1d95; color: #a78bfa; padding: 4px 10px; border-radius: 6px; border: 1px solid #7c3aed;">접기
+            ▲</span>
+        </div>
+        <div id="ai-text-wrapper" style="margin-top: 15px; line-height: 1.6;">
+          <div id="ai-text">분석 중...</div>
+        </div>
+      </div>
+
+      <div class="tab-menu">
+        <button class="tab-btn active" onclick="switchTab('dashboard', this)">대시보드</button>
+        <button class="tab-btn" onclick="switchTab('jureong-quant', this); loadJureongReport();">🤖 주렁퀀트 AI 비서</button>
+        <button class="tab-btn" onclick="switchTab('sector-rotation', this)">🧭 주도 섹터 풍향계</button>
+        <button class="tab-btn" onclick="switchTab('simulator', this)">🔮 자산 시뮬레이터</button>
+        <button class="tab-btn" onclick="switchTab('quant', this); loadQuantDashboard();">📊 퀀트 진단 & 최적화</button>
+        <button class="tab-btn" onclick="switchTab('stock-news', this)">📰 종목 뉴스</button>
+        <button class="tab-btn" onclick="switchTab('market-news', this)">🌐 마켓 시황</button>
+      </div>
+    </div>
+
+    <div id="dashboard-tab" class="tab-content active">
+      <div class="summary-stats">
+        <div class="stat-box"><span class="label">Principal (원금)</span>
+          <p class="value-usd" id="principal-usd">$0.00</p>
+          <p class="value-krw" id="principal-krw">₩0</p>
+        </div>
+        <div class="stat-box"><span class="label">Total Asset (잔고)</span>
+          <p class="value-usd" id="asset-usd">$0.00</p>
+          <p class="value-krw" id="asset-krw">₩0</p>
+        </div>
+        <div class="stat-box"><span class="label">Total Return (수익률)</span>
+          <p class="value-usd" id="total-return" style="font-size: 24px; padding-top: 5px;">0.00%</p>
+        </div>
+
+        <div class="stat-box" style="border-color: #ef4444; cursor: pointer;" onclick="toggleMddVisibility()">
+          <span class="label" style="color:#f87171;">Portfolio MDD 🔒</span>
+          <p id="mdd-text-value" class="value-usd" style="font-size: 16px; padding-top: 10px; color: #64748b;">🙈 클릭해서
+            확인</p>
+
+          <div id="mdd-info-box">
+            <strong>🔴 최대 낙폭(MDD: Maximum Drawdown) 결과: <span style="color:#ef4444; font-size:15px;">{{ portfolio_mdd
+                }}%</span></strong><br>
+            특정 투자 기간 동안 최고점 대비 **내 계좌가 가장 많이 박살 났을 때(최대 손실)의 비율**을 뜻하는 한글 명칭입니다.<br><br>
+            쉽게 말해, 지금까지 내 자산이 가장 고통스러웠던 순간의 바닥 수치입니다. 이 하락률이 낮을수록 위기 상황 방어력이 뛰어난 완벽한 포트폴리오임을 입증합니다. (다시 클릭하면 숨겨집니다.)
+          </div>
+        </div>
+      </div>
+      <div class="market-indices-row"
+        style="display: flex; gap: 15px; overflow-x: auto; margin-bottom: 20px; padding-bottom: 5px;">
+        {% for idx in market_indices %}
+        <div class="index-card" data-index-name="{{ idx.name }}">
+          <span style="color: #94a3b8; font-size: 12px; font-weight: bold; margin-bottom: 5px;">{{ idx.name }}</span>
+          <span style="color: #f8fafc; font-size: 16px; font-weight: bold;">{{ "%.2f"|format(idx.value) }}</span>
+          <span style="font-size: 13px; font-weight: bold; color: {{ idx.color }};">
+            {{ idx.sign }} {{ "%.2f"|format(idx.abs_pct) }}%
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="charts-container">
+        <div class="chart-box">
+          <div class="chart-title" onclick="toggleChart('stockChart')">
+            <span>STOCK ALLOCATION (종목 비중)</span>
+            <span class="chart-toggle-icon"></span>
+          </div>
+          <div class="chart-content" id="stockChart-container">
+            <canvas id="stockChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title" onclick="toggleChart('sectorChart')">
+            <span>AI SECTOR MAP (AI 섹터 비중)</span>
+            <span class="chart-toggle-icon"></span>
+          </div>
+          <div class="chart-content" id="sectorChart-container">
+            <canvas id="sectorChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-box" style="width: 100%; height: 350px; margin-bottom: 30px;">
+        <div class="chart-title" style="text-align: left; padding-left: 10px;">ASSET TREND & MDD ANALYSIS (수익 변화율 및 낙폭
+          트렌드)</div>
+        <div class="period-selector">
+          <button class="p-btn {% if current_period == '1mo' %}active{% endif %}"
+            onclick="changePeriod('1mo')">1M</button>
+          <button class="p-btn {% if current_period == '3mo' %}active{% endif %}"
+            onclick="changePeriod('3mo')">3M</button>
+          <button class="p-btn {% if current_period == '6mo' %}active{% endif %}"
+            onclick="changePeriod('6mo')">6M</button>
+          <button class="p-btn {% if current_period == '1y' %}active{% endif %}"
+            onclick="changePeriod('1y')">1Y</button>
+        </div>
+        <canvas id="lineChart"></canvas>
+      </div>
+
+      <div class="add-box"
+        style="background: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px;">
+        <div
+          style="font-weight: bold; color: #38bdf8; font-size: 16px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+          ➕ ADD STOCK</div>
+
+        <div
+          style="background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed #38bdf8;">
+          <label style="display: block; color: #38bdf8; font-weight: bold; margin-bottom: 10px; font-size: 14px;">🔍 종목명
+            검색 (한국/미국 주식 완벽 지원)</label>
+          <div class="search-bar-row">
+            <input type="text" id="ticker-search" placeholder="영어로 검색해주세요 (ex: samsung, AAPL)" autocomplete="off"
+              style="flex: 1; padding: 12px; border-radius: 6px; border: 1px solid #334155; background: #020617; color: white; font-size: 15px;">
+            <button type="button" id="search-btn"
+              style="padding: 12px 25px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap; font-size: 15px;">검색하기</button>
+          </div>
+          <div id="search-results"
+            style="margin-top: 15px; background: #020617; border: 1px solid #334155; border-radius: 6px; display: none; max-height: 250px; overflow-y: auto; padding: 10px;">
+          </div>
+        </div>
+
+        <form action="/add" method="POST" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+          <div style="flex: 1; min-width: 120px;"><label
+              style="display:block; margin-bottom:5px; color:#94a3b8; font-size:13px; font-weight:bold;">티커
+              (필수)</label><input type="text" name="ticker" id="real-ticker" placeholder="ex: AAPL" required
+              style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; box-sizing: border-box;">
+          </div>
+          <div style="flex: 1.5; min-width: 150px;"><label
+              style="display:block; margin-bottom:5px; color:#94a3b8; font-size:13px; font-weight:bold;">종목명
+              (필수)</label><input type="text" name="name" id="real-name" placeholder="ex: 애플" required
+              style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; box-sizing: border-box;">
+          </div>
+          <div style="flex: 1; min-width: 100px;"><label
+              style="display:block; margin-bottom:5px; color:#94a3b8; font-size:13px; font-weight:bold;">보유
+              수량</label><input type="number" step="any" name="shares" required
+              style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; box-sizing: border-box;">
+          </div>
+          <div style="flex: 1; min-width: 100px;"><label
+              style="display:block; margin-bottom:5px; color:#94a3b8; font-size:13px; font-weight:bold;">평단가</label><input
+              type="number" step="any" name="avgPrice" required
+              style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; box-sizing: border-box;">
+          </div>
+          <div style="flex: 1; min-width: 100px;"><label
+              style="display:block; margin-bottom:5px; color:#94a3b8; font-size:13px; font-weight:bold;">시장</label>
+            <select name="market"
+              style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; box-sizing: border-box;">
+              <option value="US">US Market</option>
+              <option value="KR">KR Market</option>
+            </select>
+          </div>
+          <button type="submit"
+            style="padding: 10px 20px; background: #38bdf8; color: #020617; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; height: 40px; white-space: nowrap;">ADD
+            STOCK</button>
+          <button type="button" onclick="analyzeCurrentStock(event)"
+            style="padding: 10px 15px; background: #1e1b4b; color: #a78bfa; border: 1px solid #7c3aed; border-radius: 6px; cursor: pointer; font-weight: bold; height: 40px; white-space: nowrap;">🤖
+            AI 종목 진단</button>
+        </form>
+
+        <div
+          style="margin-top: 20px; border-top: 1px dashed #334155; padding-top: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="color: #a78bfa; font-size: 14px; font-weight: bold;">📸 AI 스크린샷 자동 입력</span>
+          <input type="file" id="portfolio-image" accept="image/*" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">
+          <button type="button" onclick="document.getElementById('portfolio-image').click()"
+            style="background: #4c1d95; color: #ddd6fe; border: 1px solid #7c3aed; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px;">증권사
+            앱 캡처 올리기</button>
+          <span id="upload-status" style="color: #94a3b8; font-size: 13px;">토스, 키움 등 잔고 화면 이미지를 선택하세요.</span>
+        </div>
+      </div>
+
+      <div class="portfolio-grid" id="portfolio-grid"></div>
+    </div>
+
+    <div id="simulator-tab" class="tab-content">
+      <div class="simulator-box">
+        <div style="font-weight: bold; color: #f8fafc; font-size: 16px;">🔮 장기 복리 자산 시뮬레이터 (목표 자산 예측기)</div>
+        <div style="font-size: 13px; color: #94a3b8; margin-top: 5px;">화폐 단위를 고르고 적립 조건을 설정하여 미래의 복리 자산 증식 규모를 정밀하게
+          예측합니다.</div>
+        <div class="sim-grid">
+          <div class="sim-input-group">
+            <label>화폐 단위 선택</label>
+            <select id="sim-currency" onchange="updateSimLabels()">
+              <option value="KRW">KRW (원화 ₩)</option>
+              <option value="USD">USD (달러 $)</option>
+            </select>
+          </div>
+          <div class="sim-input-group">
+            <label id="sim-monthly-label">월 적립금 (₩)</label>
+            <input type="number" id="sim-monthly" value="300000" step="10000">
+          </div>
+          <div class="sim-input-group"><label>목표 투자 기간 (년)</label><input type="number" id="sim-years" value="10"></div>
+          <div class="sim-input-group"><label>기대 연수익률 (%)</label><input type="number" id="sim-rate" value="12"></div>
+
+          <div class="sim-input-group"
+            style="grid-column: span 2; flex-direction: row; align-items: center; gap: 10px; margin-top: 5px;">
+            <input type="checkbox" id="sim-include-current" checked style="width: auto; cursor: pointer;">
+            <label id="sim-checkbox-label" for="sim-include-current"
+              style="color: #a5b4fc; cursor: pointer; font-size: 13px; font-weight: 600;">현재 대시보드의 실시간 총잔고를 시작 투자 원금에
+              포함하기</label>
+          </div>
+
+          <div style="grid-column: span 2;">
+            <button class="sim-btn" onclick="runAssetSimulation()">⚡ 복리 시뮬레이션 가동</button>
+          </div>
+        </div>
+        <div id="sim-result"></div>
+      </div>
+
+      <div class="simulator-box"
+        style="margin-top: 20px; background: linear-gradient(135deg, #020617, #0f172a); border-color: #38bdf8;">
+        <div style="font-weight: bold; color: #f8fafc; font-size: 16px;">🕰️ 만약 내가 이 종목을 모았다면? (과거 백테스트)</div>
+        <div style="font-size: 13px; color: #94a3b8; margin-top: 5px;">특정 종목(예: AAPL, NVDA, 005930.KS)에 매달 일정한 금액을 투자했을
+          때의 과거 수익률을 시뮬레이션 백테스트합니다.</div>
+        <div class="sim-grid">
+          <div class="sim-input-group">
+            <label>종목 티커 입력</label>
+            <input type="text" id="backtest-ticker" value="AAPL" placeholder="ex: AAPL"
+              style="background:#1e1b4b; border:1px solid #4338ca; color:white; padding:12px; border-radius:6px; font-family:'JetBrains Mono'; font-size:15px; width:100%; box-sizing:border-box;">
+          </div>
+          <div class="sim-input-group">
+            <label>매월 적립금 ($ or ₩)</label>
+            <input type="number" id="backtest-monthly" value="500000" step="50000"
+              style="background:#1e1b4b; border:1px solid #4338ca; color:white; padding:12px; border-radius:6px; font-family:'JetBrains Mono'; font-size:15px; width:100%; box-sizing:border-box;">
+          </div>
+          <div class="sim-input-group">
+            <label>과거 투자 기간 (년)</label>
+            <input type="number" id="backtest-years" value="5"
+              style="background:#1e1b4b; border:1px solid #4338ca; color:white; padding:12px; border-radius:6px; font-family:'JetBrains Mono'; font-size:15px; width:100%; box-sizing:border-box;">
+          </div>
+          <div style="display:flex; align-items:flex-end;">
+            <button class="sim-btn" id="backtest-btn" onclick="runBacktest()">⚡ 타임머신 가동</button>
+          </div>
+        </div>
+        <div id="backtest-result"
+          style="margin-top: 25px; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 8px; font-family: 'JetBrains Mono'; font-size: 15px; display: none; border-left: 4px solid #38bdf8; color: #e0e7ff; line-height: 1.7;">
+        </div>
+      </div>
+    </div>
+
+    <div id="quant-tab" class="tab-content">
+      <div id="quant-loading"
+        style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; margin-bottom: 25px;">
+        <span style="font-size: 28px; margin-bottom: 15px;">⏳</span>
+        <div style="color: #38bdf8; font-size: 16px; font-weight: bold;">월스트리트 퀀트 연산 엔진 가동 중...</div>
+        <div style="color: #64748b; font-size: 13px; margin-top: 5px; text-align: center;">보유 종목들의 1년치 역사적 공분산 및 일별 수익률을
+          기반으로 마코위츠 투자선과 팩터 지표를 연산하고 있습니다.</div>
+      </div>
+
+      <div id="quant-error"
+        style="display: none; padding: 30px; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 12px; color: #f87171; text-align: center; margin-bottom: 25px;">
+        <span style="font-size: 24px; display: block; margin-bottom: 10px;">⚠️</span>
+        <strong id="quant-error-msg">데이터 로드 실패</strong>
+      </div>
+
+      <div id="quant-dashboard-view" style="display: none;">
+        <div
+          style="background: linear-gradient(135deg, #0f172a, #1e1b4b); border: 1px solid #4f46e5; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 20px rgba(79, 70, 229, 0.15);">
+          <div
+            style="font-size: 18px; font-weight: bold; color: #818cf8; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+            <span>📈 마코위츠 포트폴리오 최적화 & 리밸런싱 플랜</span>
+            <span
+              style="background: #4f46e5; color: #c7d2fe; font-size: 11px; padding: 2px 6px; border-radius: 4px;">Modern
+              Portfolio Theory</span>
+          </div>
+          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+            무작위로 시뮬레이션된 수백 개의 포트폴리오 중, 리스크 대비 성과(Sharpe Ratio)가 가장 극대화된 지점을 찾아내어 현재 내 자산과 비교하고 즉각적인 매매 행동 지침을 제시합니다.
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px;">
+            <div class="chart-box"
+              style="height: 380px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 15px; border: 1px solid #1e293b; display: flex; flex-direction: column;">
+              <div
+                style="font-weight: bold; color: #f8fafc; font-size: 14px; margin-bottom: 10px; font-family: 'Pretendard';">
+                📊 효율적 투자선 (Efficient Frontier Curve)</div>
+              <div style="flex: 1; position: relative;">
+                <canvas id="efficientFrontierChart"></canvas>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <div
+                  style="background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; border-radius: 8px; padding: 12px; text-align: center;">
+                  <span
+                    style="font-size: 11px; color: #38bdf8; font-weight: bold; display: block; margin-bottom: 4px;">🔵 내
+                    현재 포트</span>
+                  <strong style="font-family: 'JetBrains Mono'; font-size: 14px; color: #f8fafc;"
+                    id="opt-cur-return">0.00%</strong>
+                  <span style="font-size: 10px; color: #94a3b8; display: block; margin-top: 2px;">(변동성: <span
+                      id="opt-cur-vol">0%</span> | 소르티노: <span id="opt-cur-sortino">0.0</span>)</span>
+                </div>
+                <div
+                  style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 8px; padding: 12px; text-align: center;">
+                  <span
+                    style="font-size: 11px; color: #10b981; font-weight: bold; display: block; margin-bottom: 4px;">🟢
+                    Sharpe 최대 포트</span>
+                  <strong style="font-family: 'JetBrains Mono'; font-size: 14px; color: #f8fafc;"
+                    id="opt-max-return">0.00%</strong>
+                  <span style="font-size: 10px; color: #94a3b8; display: block; margin-top: 2px;">(변동성: <span
+                      id="opt-max-vol">0%</span> | 소르티노: <span id="opt-max-sortino">0.0</span>)</span>
+                </div>
+                <div
+                  style="background: rgba(234, 179, 8, 0.1); border: 1px solid #eab308; border-radius: 8px; padding: 12px; text-align: center;">
+                  <span
+                    style="font-size: 11px; color: #eab308; font-weight: bold; display: block; margin-bottom: 4px;">🟡
+                    변동성 최소 포트</span>
+                  <strong style="font-family: 'JetBrains Mono'; font-size: 14px; color: #f8fafc;"
+                    id="opt-min-return">0.00%</strong>
+                  <span style="font-size: 10px; color: #94a3b8; display: block; margin-top: 2px;">(변동성: <span
+                      id="opt-min-vol">0%</span> | 소르티노: <span id="opt-min-sortino">0.0</span>)</span>
+                </div>
+              </div>
+
+              <div
+                style="background: rgba(0, 0, 0, 0.3); border: 1px solid #1e293b; border-radius: 8px; padding: 15px; flex: 1; overflow-y: auto;">
+                <div style="font-weight: bold; color: #c7d2fe; font-size: 13px; margin-bottom: 10px;">📋 종목별 자산배분 최적화 제안
+                  (Weights Reallocation)</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                  <thead>
+                    <tr style="border-bottom: 1px solid #1e293b; color: #94a3b8;">
+                      <th style="padding: 6px 4px; white-space: nowrap;">종목명</th>
+                      <th style="padding: 6px 4px; text-align: right; white-space: nowrap;">현재 비중</th>
+                      <th style="padding: 6px 4px; text-align: right; color: #34d399; white-space: nowrap;">최대샤프(추천)
+                      </th>
+                      <th style="padding: 6px 4px; text-align: right; color: #fbbf24; white-space: nowrap;">최소변동성(안전)
+                      </th>
+                      <th style="padding: 6px 4px; text-align: right; color: #38bdf8; white-space: nowrap;">⚡ 리밸런싱 액션
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody id="opt-weights-table-body">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style="background: linear-gradient(135deg, #0f172a, #112230); border: 1px solid #0ea5e9; border-radius: 12px; padding: 25px; box-shadow: 0 4px 20px rgba(14, 165, 233, 0.15);">
+          <div
+            style="font-size: 18px; font-weight: bold; color: #38bdf8; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+            <span>📊 퀀트 멀티 팩터 종합 진단</span>
+            <span
+              style="background: #0ea5e9; color: #e0f2fe; font-size: 11px; padding: 2px 6px; border-radius: 4px;">Dynamic
+              Multi-Factor Model</span>
+          </div>
+          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">
+            포트폴리오의 가치평가(Value), 이익창출 우량성(Quality), 주가 강세 모멘텀(Momentum), 위험 안정성(Stability)을 4가지 차원에서 가중치 평가하여 한눈에 정밀
+            진단합니다.
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px;">
+            <div class="chart-box"
+              style="height: 380px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 15px; border: 1px solid #1e293b; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div
+                style="font-weight: bold; color: #f8fafc; font-size: 14px; margin-bottom: 10px; width: 100%; text-align: left; font-family: 'Pretendard';">
+                🕸️ 포트폴리오 팩터 오각형 (Radar Diagram)</div>
+              <div style="flex: 1; width: 100%; position: relative; max-height: 300px;">
+                <canvas id="factorRadarChart"></canvas>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+              <div
+                style="background: rgba(14, 165, 233, 0.05); border-left: 4px solid #0ea5e9; border-radius: 6px; padding: 15px;">
+                <strong style="color: #f8fafc; font-size: 14px; display: block; margin-bottom: 5px;">🤖 알파의 퀀트 포트폴리오 진단
+                  평가</strong>
+                <p id="factor-summary-comment" style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.6;">
+                </p>
+              </div>
+
+              <div
+                style="background: rgba(0, 0, 0, 0.3); border: 1px solid #1e293b; border-radius: 8px; padding: 15px; flex: 1; overflow-y: auto; max-height: 230px;">
+                <div style="font-weight: bold; color: #38bdf8; font-size: 13px; margin-bottom: 10px;">📋 종목별 팩터 세부 진단점수
+                  (Individual Factor Scores)</div>
+                <div id="individual-factors-list" style="display: flex; flex-direction: column; gap: 8px;">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🧭 주도 섹터 풍향계 탭 콘텐츠 -->
+    <div id="sector-rotation-tab" class="tab-content">
+      <div style="margin-bottom: 25px; padding-top: 10px;">
+        <h2 style="margin: 0 0 10px 0; font-size: 18px; color: #f8fafc; font-family: 'Pretendard'; display: flex; align-items: center; gap: 8px;">
+          <span>🧭</span> 월스트리트 주도 섹터 풍향계
+        </h2>
+        <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.6;">
+          최근 1개월(1M) 동안 미국 시장의 진짜 자금 유입세를 ETF 모멘텀 순위로 판독합니다. 각 섹터별 하단에 표기되는 종목들은 <strong>최근 1개월간 해당 섹터 내에서 가장 수익률이 우수한 대장주 TOP 3</strong>로 실시간 동적 산출됩니다.
+        </p>
+      </div>
+
+      <!-- 🔥 리더 보드 (1~3위) -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        {% for sec in sector_rotation[:3] %}
+        <div style="background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(16px); border: 1.5px solid rgba(255, 255, 255, 0.08); padding: 20px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden;"
+             onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='{{ sec.color }}'; this.style.boxShadow='0 15px 45px rgba(0,0,0,0.6), 0 0 10px {{ sec.color }}20'"
+             onmouseout="this.style.transform='none'; this.style.borderColor='rgba(255, 255, 255, 0.08)'; this.style.boxShadow='0 12px 40px rgba(0, 0, 0, 0.4)'">
+          
+          <div style="position: absolute; top: -10px; right: -10px; width: 50px; height: 50px; background: {{ '#fbbf24' if sec.rank == 1 else ('#94a3b8' if sec.rank == 2 else '#b45309') }}; transform: rotate(45deg); opacity: 0.15; z-index: 1;"></div>
+          <div style="position: absolute; top: 8px; right: 12px; font-size: 11px; font-weight: bold; color: {{ '#fbbf24' if sec.rank == 1 else ('#cbd5e1' if sec.rank == 2 else '#d97706') }}; z-index: 2;">
+            {{ '🏆 GOLD' if sec.rank == 1 else ('🥈 SILVER' if sec.rank == 2 else '🥉 BRONZE') }}
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 22px; font-weight: 800; color: {{ sec.color }}; font-family: 'JetBrains Mono';">{{ sec.rank }}</span>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 15px; font-weight: bold; color: #f8fafc;">{{ sec.name }}</span>
+              <span style="font-size: 10px; color: #64748b; font-family: 'JetBrains Mono'; font-weight: bold;">{{ sec.ticker }}</span>
+            </div>
+          </div>
+
+          <div style="font-size: 26px; font-weight: 900; color: {{ sec.color }}; text-shadow: 0 0 12px {{ 'rgba(52,211,153,0.5)' if sec.momentum >= 0 else 'rgba(248,113,113,0.5)' }}; font-family: 'JetBrains Mono'; margin: 4px 0;">
+            {{ '+' if sec.momentum >= 0 else '' }}{{ sec.momentum }}%
+          </div>
+
+          <div style="border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 12px; margin-top: 4px;">
+            <div style="font-size: 10px; color: #38bdf8; font-weight: bold; margin-bottom: 8px; letter-spacing: 0.5px;">🔥 1M 수익률 최상위 대장주</div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              {% for h in sec.holdings %}
+              <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 6px;">
+                <span style="font-size: 11px; color: #e2e8f0; font-weight: 500;">{{ h.name }} <span style="font-size: 9px; color: #64748b; font-family: 'JetBrains Mono';">{{ h.ticker }}</span></span>
+                <span style="font-size: 11px; font-weight: bold; color: {{ '#34d399' if h.momentum >= 0 else '#f87171' }}; font-family: 'JetBrains Mono';">
+                  {{ '+' if h.momentum >= 0 else '' }}{{ h.momentum }}%
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- 📊 로테이션 전체 랭킹 보드 (4~12위) -->
+      <div style="background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(16px); border: 1.5px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35); margin-bottom: 25px;">
+        <div style="font-weight: bold; color: #94a3b8; font-size: 13px; margin-bottom: 15px; display: flex; align-items: center; gap: 6px;">
+          <span>📋</span> 전체 섹터 랭킹 및 모멘텀 흐름 (4위 ~ 12위)
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          {% for sec in sector_rotation[3:] %}
+          <div style="display: grid; grid-template-columns: 40px 120px 100px 1fr; align-items: center; padding: 12px 15px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; transition: 0.2s;"
+               onmouseover="this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(56,189,248,0.2)'"
+               onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+            <span style="font-family: 'JetBrains Mono'; font-weight: bold; font-size: 14px; color: #94a3b8;">{{ sec.rank }}</span>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 13px; font-weight: bold; color: #f8fafc;">{{ sec.name }}</span>
+              <span style="font-size: 9px; color: #64748b; font-family: 'JetBrains Mono';">{{ sec.ticker }}</span>
+            </div>
+            <span style="font-family: 'JetBrains Mono'; font-weight: bold; font-size: 14px; color: {{ sec.color }};">
+              {{ '+' if sec.momentum >= 0 else '' }}{{ sec.momentum }}%
+            </span>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+              <span style="font-size: 9px; color: #38bdf8; font-weight: bold; align-self: center; margin-right: 6px; letter-spacing: 0.3px;">1M 최우수주 TOP 3:</span>
+              {% for h in sec.holdings %}
+              <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); padding: 4px 8px; border-radius: 4px; display: flex; gap: 6px; align-items: center;">
+                <span style="font-size: 10px; color: #e2e8f0; font-weight: 500;">{{ h.name }}</span>
+                <span style="font-size: 9px; font-weight: bold; color: {{ '#34d399' if h.momentum >= 0 else '#f87171' }}; font-family: 'JetBrains Mono';">
+                  {{ '+' if h.momentum >= 0 else '' }}{{ h.momentum }}%
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    
+<div id="stock-news-tab" class="tab-content">
+      <div
+        style="margin-bottom:20px; border-bottom:1px solid #1e293b; padding-bottom:15px; display:flex; gap:10px; overflow-x:auto;">
+        <button class="filter-btn active" onclick="filterNews('ALL', this)">🌐 ALL</button>
+        {% for item in portfolio_data %}<button class="filter-btn" onclick="filterNews('{{ item.name }}', this)">{{
+          item.name }}</button>{% endfor %}
+      </div>
+      <div class="news-list" id="stock-news-list">
+        {% for news in stock_news_data %}
+        <a href="{{ news.link }}" target="_blank" class="news-item stock-news-item" data-stock="{{ news.stock }}">
+          <div class="news-meta"><span class="news-badge" style="color:#38bdf8;">{{ news.stock }}</span><span
+              class="news-source">{{ news.source }}</span><span class="news-date">{{ news.date }}</span></div>
+          <div class="news-title text-collector">{{ news.title }}</div>
+        </a>
+        {% endfor %}
+      </div>
+      <div id="stock-news-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 15px;"></div>
+    </div>
+
+    <div id="jureong-quant-tab" class="tab-content">
+      <div style="background: #0f172a; border: 1px solid #38bdf8; border-radius: 12px; padding: 25px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 20px;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 15px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 28px;">🤖</span>
+            <div>
+              <h2 style="margin: 0; color: #f8fafc; font-size: 20px; font-weight: bold; font-family: 'Pretendard';">주렁퀀트 AI 데일리 마켓 브리핑</h2>
+              <span style="color: #64748b; font-size: 12px;">공포탐욕지수, 미국채 금리, 유가 및 뉴스를 기반으로 당일 매수전략을 도출합니다.</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button id="btn-refresh-jureong" onclick="loadJureongReport(true)" 
+              style="background: #1e293b; color: #38bdf8; border: 1px solid #334155; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s;">
+              🔄 분석 새로고침
+            </button>
+            <button id="btn-send-jureong-tg" onclick="sendJureongReportToTelegram()" 
+              style="background: linear-gradient(135deg, #38bdf8, #818cf8); color: #020617; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s;">
+              📢 텔레그램 발송
+            </button>
+          </div>
+        </div>
+
+        <div style="position: relative; min-height: 300px; background: #020617; border-radius: 8px; border: 1px solid #1e293b; padding: 20px; overflow: hidden;">
+          <!-- 로딩 스피너 -->
+          <div id="jureong-loading" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); justify-content: center; align-items: center; flex-direction: column; gap: 12px; z-index: 5;">
+            <div class="ai-report-spinner" style="width: 50px; height: 50px; border: 4px solid rgba(56, 189, 248, 0.1); border-top: 4px solid #38bdf8; border-radius: 50%;"></div>
+            <span style="color: #38bdf8; font-size: 14px; font-weight: bold;">주렁퀀트 매크로 시장분석 엔진 구동 중...</span>
+          </div>
+
+          <!-- 리포트 출력 뷰포트 -->
+          <div id="jureong-report-content" style="color: #cbd5e1; font-size: 14px; line-height: 1.8; font-family: 'Pretendard', sans-serif;">
+            <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 250px; color: #64748b; text-align: center; gap: 8px;">
+              <span>🤖 주렁퀀트가 경제 지표와 마켓 시황 뉴스를 분석하고 있습니다.</span>
+              <span style="font-size: 12px;">잠시만 기다려 주시거나 '분석 새로고침'을 클릭해 주세요.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 오늘의 매수 추천 종목 박스 신설 -->
+        <div style="background: #0f172a; border: 1px solid #c084fc; border-radius: 12px; padding: 25px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 20px; margin-top: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #1e293b; padding-bottom: 15px;">
+            <span style="font-size: 28px;">🔥</span>
+            <div>
+              <h2 style="margin: 0; color: #f8fafc; font-size: 20px; font-weight: bold; font-family: 'Pretendard';">주렁퀀트 오늘의 추천 매수 종목 (Top Pick)</h2>
+              <span style="color: #a78bfa; font-size: 12px; font-weight: 500;">현재 거시 시황 및 주도주의 수급/차트 모멘텀을 연계 분석한 당일 매수 탑픽입니다.</span>
+            </div>
+          </div>
+
+          <div style="position: relative; min-height: 200px; background: #020617; border-radius: 8px; border: 1px solid #1e293b; padding: 20px; overflow: hidden;">
+            <!-- 로딩 스피너 -->
+            <div id="jureong-recommend-loading" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); justify-content: center; align-items: center; flex-direction: column; gap: 12px; z-index: 5;">
+              <div class="ai-report-spinner" style="width: 50px; height: 50px; border: 4px solid rgba(192, 132, 252, 0.1); border-top: 4px solid #c084fc; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+              <span style="color: #c084fc; font-size: 14px; font-weight: bold;">추천 분석 엔진 작동 중...</span>
+            </div>
+
+            <!-- 추천 리포트 출력 뷰포트 -->
+            <div id="jureong-recommend-content" style="color: #cbd5e1; font-size: 14px; line-height: 1.8; font-family: 'Pretendard', sans-serif;">
+              <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 150px; color: #64748b; text-align: center; gap: 8px;">
+                <span>🤖 주렁퀀트 AI가 오늘 가장 매력적인 주도주를 선별하고 있습니다.</span>
+                <span style="font-size: 12px;">잠시만 기다려 주시거나 '분석 새로고침'을 클릭해 주세요.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="market-news-tab" class="tab-content">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+        <div class="market-news-column">
+          <div
+            style="background: #1e3a8a; color: #bfdbfe; padding: 12px 15px; border-radius: 8px; font-weight: bold; margin-bottom: 15px; border-left: 4px solid #3b82f6; font-size: 15px; font-family: 'Pretendard';">
+            🇰🇷 KOSPI & KOSDAQ (국내 증시)
+          </div>
+          <div class="news-list">
+            {% for news in domestic_news %}
+            <a href="{{ news.link }}" target="_blank" class="news-item domestic-item"
+              style="border-left-color: #3b82f6; background: #0f172a;">
+              <div class="news-meta">
+                <span class="news-badge" style="background-color: #1e3a8a; color: #bfdbfe; border-color: #3b82f6;">{{
+                  news.badge }}</span>
+                <span class="news-source">{{ news.source }}</span>
+                <span class="news-date">{{ news.date }}</span>
+              </div>
+              <div class="news-title text-collector">{{ news.title }}</div>
+            </a>
+            {% endfor %}
+          </div>
+          <div id="domestic-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 15px;">
+          </div>
+        </div>
+
+        <div class="market-news-column">
+          <div
+            style="background: #311042; color: #f472b6; padding: 12px 15px; border-radius: 8px; font-weight: bold; margin-bottom: 15px; border-left: 4px solid #ec4899; font-size: 15px; font-family: 'Pretendard';">
+            🇺🇸 GLOBAL & MACRO (해외 증시)
+          </div>
+          <div class="news-list">
+            {% for news in overseas_news %}
+            <a href="{{ news.link }}" target="_blank" class="news-item overseas-item"
+              style="border-left-color: #ec4899; background: #0f172a;">
+              <div class="news-meta">
+                <span class="news-badge dynamic-badge-chip" style="border-color: #ec4899;">{{ news.badge }}</span>
+                <span class="news-source">{{ news.source }}</span>
+                <span class="news-date">{{ news.date }}</span>
+              </div>
+              <div class="news-title text-collector">{{ news.title }}</div>
+            </a>
+            {% endfor %}
+          </div>
+          <div id="overseas-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 15px;">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-modal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
+    <div
+      style="background:#0f172a; border:1px solid #38bdf8; padding:30px; border-radius:12px; max-width:400px; width:90%; position:relative;">
+      <button onclick="closeSettings()"
+        style="position:absolute; top:15px; right:15px; background:transparent; border:none; color:#94a3b8; font-size:20px; cursor:pointer;">&times;</button>
+      <h2 style="margin-top:0; color:#e2e8f0; font-family:'JetBrains Mono'; font-size:20px;">⚙️ 계정 설정</h2>
+      <div style="margin-bottom:20px;">
+        <label style="display:block; color:#94a3b8; font-size:13px; margin-bottom:8px;">📱 Telegram Chat ID (알림
+          수신용)</label>
+        <input type="text" id="tg-chat-id" placeholder="ex: 123456789"
+          style="width:100%; padding:12px; background:#1e293b; border:1px solid #334155; color:white; border-radius:6px; font-family:'JetBrains Mono'; box-sizing:border-box;">
+      </div>
+      <div
+        style="background:#1e3a8a; border-left:4px solid #3b82f6; padding:15px; border-radius:6px; font-size:12px; color:#bfdbfe; margin-bottom:20px; line-height:1.6;">
+        <strong>💡 텔레그램 연동 방법:</strong><br>
+        1. 텔레그램 앱에서 <code>@userinfobot</code> 을 검색하고 <strong>/start</strong> 를 누르세요.<br>
+        2. 봇이 알려주는 본인의 <strong>Id 숫자</strong>(ex. 123456789)를 복사해서 위 칸에 붙여넣으세요.<br>
+        3. 하단의 [저장하기]를 누른 뒤, 앞으로 AI 브리핑 버튼을 누르면 본인 스마트폰으로 메시지가 전송됩니다!
+      </div>
+      <button onclick="saveSettings()"
+        style="width:100%; background:#38bdf8; color:#020617; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:15px;">저장하기</button>
+    </div>
+  </div>
+
+  <div id="stock-chart-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+    <div
+      style="background: #0f172a; border: 1px solid #38bdf8; border-radius: 12px; padding: 25px; width: 95%; max-width: 1100px; position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 15px;">
+      
+      <button onclick="closeStockChartModal()"
+        style="position: absolute; top: 15px; right: 20px; background: transparent; border: none; color: #94a3b8; font-size: 24px; cursor: pointer; transition: 0.2s; z-index: 10;">&times;</button>
+      
+      <div id="stock-modal-title"
+        style="font-size: 20px; color: #f8fafc; font-weight: bold; margin-bottom: 5px; font-family: 'JetBrains Mono'; text-align: center;">
+      </div>
+
+      <div style="display: flex; gap: 20px; height: 480px;">
+        <!-- 좌측: 차트 영역 (width: 55%) -->
+        <div style="flex: 1.2; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+          <div
+            style="display: flex; gap: 15px; justify-content: space-between; align-items: center; background: #020617; padding: 10px 15px; border-radius: 8px; border: 1px solid #1e293b;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="color: #64748b; font-size: 11px; font-weight: bold;">조회 기간:</span>
+              <button class="modal-period-btn active" onclick="loadStockChartData('1mo')">1M</button>
+              <button class="modal-period-btn" onclick="loadStockChartData('3mo')">3M</button>
+              <button class="modal-period-btn" onclick="loadStockChartData('6mo')">6M</button>
+              <button class="modal-period-btn" onclick="loadStockChartData('1y')">1Y</button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="color: #64748b; font-size: 11px; font-weight: bold;">차트 유형:</span>
+              <button class="modal-type-btn active" id="btn-chart-line" onclick="setChartType('line')">📈 라인</button>
+              <button class="modal-type-btn" id="btn-chart-candle" onclick="setChartType('candle')">🕯️ 캔들</button>
+            </div>
+          </div>
+
+          <div style="width: 100%; flex: 1; position: relative; background: #020617; border-radius: 8px; border: 1px solid #1e293b; overflow: hidden; height: 400px;">
+            <div id="stock-modal-loading"
+              style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.85); justify-content: center; align-items: center; color: #38bdf8; font-weight: bold; font-size: 16px; border-radius: 8px; z-index: 5;">
+              ⏳ 데이터를 불러오는 중...
+            </div>
+            <div id="stockModalChart" style="height: 100%; min-height: 400px;"></div>
+          </div>
+        </div>
+
+        <!-- 우측: 분석 지표 & AI 리포트 영역 (width: 45%) -->
+        <div style="flex: 0.8; display: flex; flex-direction: column; gap: 15px; min-width: 0; height: 100%;">
+          
+          <!-- 우측 상단: 실시간 정량 분석 지표 (공백 최적화) -->
+          <div style="background: #020617; border-radius: 8px; border: 1px solid #1e293b; padding: 15px; display: flex; flex-direction: column; gap: 10px; flex: none; height: 180px; overflow-y: auto;">
+            <span style="color: #38bdf8; font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 5px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
+              📊 실시간 퀀트 분석 지표
+            </span>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
+              <!-- RS 전투력 -->
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8; font-size: 11px;">RS 상대적 주가 강도 (6개월)</span>
+                <span id="modal-rs-badge" style="font-weight: bold; color: #94a3b8; font-size: 11px;">-</span>
+              </div>
+              
+              <!-- MTT 추세 판독 -->
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8; font-size: 11px;">MTT 추세 판독 (미너비니)</span>
+                <span id="modal-mtt-badge" style="font-weight: bold; color: #94a3b8; font-size: 11px;">-</span>
+              </div>
+              
+              <!-- 추세 에너지 -->
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8; font-size: 11px;">추세 에너지 (ADX)</span>
+                <span id="modal-adx-badge" style="font-weight: bold; color: #94a3b8; font-size: 11px;">-</span>
+              </div>
+              
+              <!-- 수급 상태 -->
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8; font-size: 11px;">세력 매집 수급 상태 (20일)</span>
+                <span id="modal-volume-badge" style="font-weight: bold; color: #94a3b8; font-size: 11px;">-</span>
+              </div>
+
+              <!-- 눌림목 스캐너 -->
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8; font-size: 11px;">눌림목 골든 시그널</span>
+                <span id="modal-v4-badge" style="font-size: 10px; font-weight: bold; color: #a78bfa; background: #1e1b4b; padding: 2px 6px; border-radius: 4px; border: 1px solid #4c1d95;">스캔 대기 중</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 우측 하단: AI 리포트 분석 영역 (크기 확장) -->
+          <div style="background: #020617; border-radius: 8px; border: 1px solid #1e293b; padding: 15px; display: flex; flex-direction: column; flex: 1.4; min-width: 0; overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
+              <span style="color: #38bdf8; font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                🤖 AI 원클릭 리포트 <span style="font-size: 9px; color: #a78bfa; background: #1e1b4b; padding: 2px 5px; border-radius: 4px; border: 1px solid #4c1d95; margin-left: 5px; font-weight: normal; cursor: pointer;" onclick="zoomAiReport()" title="클릭해서 크게 보기">🔍 크게보기</span>
+              </span>
+              <button id="btn-load-ai-report" onclick="fetchStockAiReport()" 
+                style="background: linear-gradient(135deg, #38bdf8, #818cf8); color: #020617; border: none; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 10px; cursor: pointer; transition: 0.2s;">
+                ⚡ 생성
+              </button>
+            </div>
+            
+            <!-- AI 리포트 결과 컨테이너 -->
+            <div style="flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column;">
+              <!-- 로딩 바 -->
+              <div id="ai-report-loading" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); justify-content: center; align-items: center; flex-direction: column; gap: 10px; z-index: 5;">
+                <div class="ai-report-spinner" style="width: 24px; height: 24px; border: 2px solid rgba(56, 189, 248, 0.1); border-top: 2px solid #38bdf8; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <span style="color: #38bdf8; font-size: 10px; font-weight: bold;">Gemini AI 분석 중...</span>
+              </div>
+              
+              <div id="ai-report-text-container" onclick="zoomAiReport()" title="클릭하시면 큰 화면으로 확대하여 보실 수 있습니다." style="flex: 1; overflow-y: auto; color: #cbd5e1; font-size: 11px; line-height: 1.6; padding-right: 5px; font-family: 'Pretendard', sans-serif; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background=document.body.classList.contains('light-theme')?'rgba(0,0,0,0.02)':'rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; color: #64748b; text-align: center; gap: 5px;">
+                  <span>🤖 Gemini 실시간 AI IR 리포트</span>
+                  <span style="font-size: 10px;">상단의 '생성' 버튼을 클릭하세요.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ai-report-modal" class="modal-overlay" onclick="closeAiReportModal(event)">
+    <div class="modal-window" onclick="event.stopPropagation()" style="max-width: 600px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🤖</span> <span id="report-modal-title">AI 진단 리포트</span>
+        </div>
+        <button class="modal-close" onclick="closeAiReportModal(null, true)">×</button>
+      </div>
+      <div id="report-modal-content"
+        style="max-height: 500px; overflow-y: auto; color: #e2e8f0; font-size: 14px; line-height: 1.7; padding-right: 10px; font-family: 'Pretendard';">
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .modal-period-btn,
+    .modal-type-btn {
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-family: 'JetBrains Mono';
+      transition: all 0.2s ease;
+      font-size: 13px;
+    }
+
+    .modal-period-btn:hover,
+    .modal-type-btn:hover {
+      background: #334155;
+      color: #f8fafc;
+    }
+
+    .modal-period-btn.active,
+    .modal-type-btn.active {
+      background: #38bdf8;
+      color: #020617;
+      border-color: #38bdf8;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .ai-report-spinner {
+      animation: spin 1s linear infinite;
+    }
+  </style>
+
+  <script>
+    // 전역 차트 인스턴스 (MDD 트렌드 제어용)
+    window.mainLineChart = null;
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-menu > .tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(tabId + '-tab').classList.add('active');
+      btn.classList.add('active');
+    }
+
+    let isMddRevealed = false;
+    const realMddValue = "{{ portfolio_mdd }}%";
+
+    // 차트에 MDD 라인 실시간 토글 연동
+    function toggleMddVisibility() {
+      const infoBox = document.getElementById('mdd-info-box');
+      const textVal = document.getElementById('mdd-text-value');
+
+      if (!isMddRevealed) {
+        textVal.innerText = realMddValue;
+        textVal.style.fontSize = "24px";
+        textVal.style.color = "#ef4444";
+        textVal.style.fontWeight = "bold";
+        textVal.style.paddingTop = "5px";
+        infoBox.style.display = 'block';
+        isMddRevealed = true;
+      } else {
+        textVal.innerText = "🙈 클릭해서 확인";
+        textVal.style.fontSize = "16px";
+        textVal.style.color = "#64748b";
+        textVal.style.fontWeight = "normal";
+        textVal.style.paddingTop = "10px";
+        infoBox.style.display = 'none';
+        isMddRevealed = false;
+      }
+
+      if (window.mainLineChart) {
+        const mddIndex = window.mainLineChart.data.datasets.findIndex(d => d.label === 'MDD (최대 낙폭)');
+        if (mddIndex !== -1) {
+          window.mainLineChart.data.datasets[mddIndex].hidden = !isMddRevealed;
+          window.mainLineChart.update();
+        }
+      }
+    }
+
+    function updateSimLabels() {
+      const currency = document.getElementById('sim-currency').value;
+      const monthlyLabel = document.getElementById('sim-monthly-label');
+      const monthlyInput = document.getElementById('sim-monthly');
+      if (currency === 'KRW') { monthlyLabel.innerText = "월 적립금 (₩)"; monthlyInput.value = "300000"; }
+      else { monthlyLabel.innerText = "월 적립금 ($)"; monthlyInput.value = "300"; }
+    }
+
+    let currentTotalAssetUsd = 0;
+    function runAssetSimulation() {
+      const currency = document.getElementById('sim-currency').value;
+      const monthly = parseFloat(document.getElementById('sim-monthly').value);
+      const years = parseInt(document.getElementById('sim-years').value);
+      const annualRate = parseFloat(document.getElementById('sim-rate').value) / 100;
+      const includeCurrent = document.getElementById('sim-include-current').checked;
+
+      const monthlyRate = annualRate / 12;
+      const totalMonths = years * 12;
+
+      let startPrincipal = 0;
+      if (includeCurrent) { startPrincipal = (currency === 'USD') ? currentTotalAssetUsd : (currentTotalAssetUsd * USD_KRW); }
+
+      let futureValue = startPrincipal;
+      let totalInvested = startPrincipal;
+
+      for (let i = 0; totalMonths > i; i++) {
+        futureValue = (futureValue + monthly) * (1 + monthlyRate);
+        totalInvested += monthly;
+      }
+
+      const compoundInterest = futureValue - totalInvested;
+      let displayFuture, displayInvested, displayInterest, alternativeDisplay;
+
+      if (currency === 'USD') {
+        displayFuture = `$${Math.round(futureValue).toLocaleString()}`; displayInvested = `$${Math.round(totalInvested).toLocaleString()}`; displayInterest = `$${Math.round(compoundInterest).toLocaleString()}`; alternativeDisplay = `(₩${Math.round(futureValue * USD_KRW).toLocaleString()})`;
+      } else {
+        displayFuture = `₩${Math.round(futureValue).toLocaleString()}`; displayInvested = `₩${Math.round(totalInvested).toLocaleString()}`; displayInterest = `₩${Math.round(compoundInterest).toLocaleString()}`; alternativeDisplay = `($${Math.round(futureValue / USD_KRW).toLocaleString()})`;
+      }
+
+      const resBox = document.getElementById('sim-result');
+      resBox.style.display = 'block';
+      resBox.innerHTML = `
+            🚀 <strong>${years}년 후 예상 자산 평가액:</strong> <span style="color:#4ade80; font-size:16px; font-weight:bold;">${displayFuture} ${alternativeDisplay}</span><br>
+            💰 <strong>순수 누적 투자 원금:</strong> ${displayInvested} / ✨ <strong>복리로 불어난 이자 수익:</strong> ${displayInterest}<br>
+            🔮 <em>${includeCurrent ? '현재 계좌 잔고를 포함하여 굴린' : '대시보드 잔고 없이 0원부터 순수 적립식으로 채운'} 복리의 연산 결과입니다. (적용 환율: 1$ = ₩${USD_KRW.toFixed(2)})</em>
+        `;
+    }
+
+    async function runBacktest() {
+      const ticker = document.getElementById('backtest-ticker').value.trim();
+      const monthly = parseFloat(document.getElementById('backtest-monthly').value);
+      const years = parseInt(document.getElementById('backtest-years').value);
+      const btn = document.getElementById('backtest-btn');
+      const resBox = document.getElementById('backtest-result');
+      if (!ticker) { alert('종목 티커를 입력해주세요. (예: AAPL, NVDA)'); return; }
+
+      btn.disabled = true; btn.innerText = "데이터 분석 중..."; resBox.style.display = 'block'; resBox.innerHTML = "과거 주가 데이터를 불러와 매달 적립 매수 백테스트를 진행하고 있습니다...";
+      try {
+        const response = await fetch('/api/backtest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticker, monthly, years }) });
+        const data = await response.json();
+
+        if (data.error) { resBox.innerHTML = `❌ 오류: ${data.error}`; }
+        else {
+          const profitColor = data.profit_pct >= 0 ? '#4ade80' : '#f87171';
+          resBox.innerHTML = `
+                    🎯 <strong>[${ticker.toUpperCase()}] ${years}년간 매월 ${monthly.toLocaleString()}씩 투자했다면?</strong><br>
+                    💰 <strong>순수 누적 투자 원금:</strong> ${data.total_invested.toLocaleString()}<br>
+                    🚀 <strong>현재 평가 금액:</strong> <span style="color:${profitColor}; font-size:16px; font-weight:bold;">${Math.round(data.final_value).toLocaleString()}</span><br>
+                    ✨ <strong>총 수익률:</strong> <span style="color:${profitColor}; font-weight:bold;">${data.profit_pct > 0 ? '+' : ''}${data.profit_pct.toFixed(2)}%</span> (보유 수량: ${data.total_shares.toFixed(2)}주 / 평균 매수단가: ${(data.total_invested / data.total_shares).toFixed(2)})
+                `;
+        }
+      } catch (error) { resBox.innerHTML = "❌ 통신 오류가 발생했습니다."; }
+      btn.disabled = false; btn.innerText = "⚡ 타임머신 가동";
+    }
+
+    const searchInput = document.getElementById('ticker-search');
+    const searchBtn = document.getElementById('search-btn');
+    const searchResults = document.getElementById('search-results');
+
+    async function executeSearch() {
+      const query = searchInput.value.trim();
+      if (query.length === 0) { alert("검색어를 입력해주세요."); return; }
+
+      searchResults.style.display = 'block'; searchResults.innerHTML = '<div style="text-align: center; padding: 10px; color: #94a3b8;">글로벌 검색 중... ⏳</div>';
+      try {
+        const response = await fetch(`/api/search_ticker?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+          const formattedData = data.map(item => ({ symbol: item.symbol, name: item.name, market: (item.exchange === 'KR Market' || item.symbol.endsWith('.KS') || item.symbol.endsWith('.KQ')) ? 'KR' : 'US' }));
+          renderResults(formattedData);
+        } else { searchResults.innerHTML = '<div style="color: #f87171; text-align: center; padding: 10px;">검색 결과가 없습니다.<br>티커(종목코드)를 직접 입력해주세요.</div>'; }
+      } catch (error) { searchResults.innerHTML = '<div style="color: #f87171; text-align: center; padding: 10px;">네트워크 오류가 발생했습니다.<br>잠시 후 다시 시도해주세요.</div>'; }
+    }
+
+    function renderResults(quotes) {
+      searchResults.innerHTML = '<div style="font-size: 12px; color: #38bdf8; margin-bottom: 10px;">👇 원하는 종목을 클릭하세요</div>';
+      quotes.slice(0, 10).forEach(item => {
+        const div = document.createElement('div'); div.style.padding = '10px'; div.style.borderBottom = '1px solid #1e293b'; div.style.cursor = 'pointer'; div.style.fontSize = '14px';
+        div.innerHTML = `<strong style="color:#0ea5e9">${item.symbol}</strong> - <span style="color:#f8fafc">${item.name}</span> <span style="color:#64748b; font-size:11px;">(${item.market === 'KR' ? '한국주식' : '미국주식'})</span>`;
+        div.onmouseover = () => div.style.background = '#1e293b'; div.onmouseout = () => div.style.background = 'transparent';
+
+        div.onclick = () => {
+          document.getElementById('real-ticker').value = item.symbol;
+          document.getElementById('real-name').value = item.name.replace(" (정확한 영문 티커인가요?)", "");
+          const marketSelect = document.querySelector('select[name="market"]');
+          marketSelect.value = (item.market === 'KR' || item.symbol.endsWith('.KS') || item.symbol.endsWith('.KQ')) ? 'KR' : 'US';
+          searchResults.innerHTML = `<div style="color: #4ade80; text-align: center; padding: 10px;">✅ [${item.name}] 선택 완료!</div>`;
+          setTimeout(() => searchResults.style.display = 'none', 3000); searchInput.value = '';
+        };
+        searchResults.appendChild(div);
+      });
+    }
+
+    searchBtn.addEventListener('click', executeSearch);
+    searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); executeSearch(); } });
+
+    let currentStockFilter = 'ALL';
+    function filterNews(stock, btn) {
+      document.querySelectorAll('#stock-news-tab .filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active'); currentStockFilter = stock;
+      document.querySelectorAll('.stock-news-item').forEach(c => {
+        if (stock === 'ALL' || c.dataset.stock === stock) { c.classList.add('active-news'); }
+        else { c.classList.remove('active-news'); c.style.display = 'none'; }
+      });
+      initPagination('active-news', 'stock-news-pagination', 5);
+    }
+
+    function changePeriod(p) { window.location.href = '/?period=' + p; }
+
+    const portfolio = {{ portfolio_data | tojson }};
+    const USD_KRW = {{ exchange_rate }};
+    const trendDates = {{ trend_dates | tojson if trend_dates else '[]' }};
+    const trendValues = {{ trend_values | tojson if trend_values else '[]' }};
+    const spyValues = {{ spy_values | tojson if spy_values else '[]' }};
+    const mddTrendValues = {{ mdd_trend_values | tojson if mdd_trend_values else '[]' }};
+
+    function renderDashboard() {
+      const grid = document.getElementById("portfolio-grid");
+      grid.innerHTML = ""; let totalCurrentUsd = 0, totalPrincipalUsd = 0; const sectorMap = {};
+
+      portfolio.forEach((stock, index) => {
+        const currentVal = stock.currentPrice * stock.shares; const principalVal = stock.avgPrice * stock.shares;
+        let usdValue = stock.market === "KR" ? currentVal / USD_KRW : currentVal;
+
+        totalCurrentUsd += usdValue;
+        totalPrincipalUsd += stock.market === "KR" ? principalVal / USD_KRW : principalVal;
+
+        const sector = stock.sector || "소비재/기타"; sectorMap[sector] = (sectorMap[sector] || 0) + usdValue;
+        const returnPct = ((stock.currentPrice - stock.avgPrice) / stock.avgPrice) * 100;
+        const unit = stock.market === "KR" ? "₩" : "$";
+        const peakColor = stock.dropFromPeak <= -10 ? "color:#f87171; font-weight:bold;" : "color:#94a3b8;";
+
+        grid.innerHTML += `
+          <div class="card" onclick="openStockChartModal('${stock.ticker}', '${stock.name}')" style="cursor: pointer; transition: all 0.2s ease-in-out; position: relative;">
+            <form action="/delete/${stock.id}" method="POST" onclick="event.stopPropagation();">
+                <button type="submit" class="delete-btn" onclick="event.stopPropagation();">X</button>
+            </form>
+            <div style="margin-bottom:15px"><span class="stock-name">${stock.name}</span><span class="stock-sector">${stock.ticker} · ${sector}</span></div>
+            <div class="data-row"><span class="label">Shares</span><span>${stock.shares}주</span></div>
+            <div class="data-row"><span class="label">Avg Price</span><span>${unit}${stock.avgPrice.toLocaleString()}</span></div>
+            <div class="data-row"><span class="label">Current Price</span><span>${unit}${stock.currentPrice.toLocaleString()}</span></div>
+            <div class="data-row"><span class="label">Drop from Peak</span><span style="${peakColor}">${stock.dropFromPeak.toFixed(2)}%</span></div>
+
+            <div class="data-row" style="margin-top: 10px; border-top: 1px dashed #1e293b; padding-top: 8px;">
+              <span class="label">Return</span>
+              <span class="${returnPct >= 0 ? 'profit' : 'loss'}">${returnPct > 0 ? '+' : ''}${returnPct.toFixed(2)}%</span>
+            </div>
+
+            <!-- 🔍 상세 지표는 캔들차트 클릭 시 팝업 창에 깔끔하게 노출됩니다 -->
+          </div>`;
+      });
+
+      currentTotalAssetUsd = totalCurrentUsd;
+      const stockLabels = []; const stockValues = [];
+      portfolio.forEach(stock => {
+        const currentVal = stock.currentPrice * stock.shares; let usdValue = stock.market === "KR" ? currentVal / USD_KRW : currentVal;
+        const pct = totalCurrentUsd > 0 ? ((usdValue / totalCurrentUsd) * 100).toFixed(1) : 0;
+        stockLabels.push(`${stock.name} (${pct}%)`); stockValues.push(usdValue);
+      });
+
+      const sectorLabels = []; const sectorValues = [];
+      Object.keys(sectorMap).forEach(key => {
+        const val = sectorMap[key]; const pct = totalCurrentUsd > 0 ? ((val / totalCurrentUsd) * 100).toFixed(1) : 0;
+        sectorLabels.push(`${key} (${pct}%)`); sectorValues.push(val);
+      });
+
+      const colors = ['#38bdf8', '#818cf8', '#34d399', '#fbbf24', '#f87171', '#a78bfa'];
+      const createDoughnutOptions = () => ({
+        responsive: true, maintainAspectRatio: false, cutout: '75%',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } },
+          tooltip: { callbacks: { label: function (ctx) { return ` ${ctx.label.split(' ')[0]}: $${ctx.raw.toLocaleString(undefined, { minimumFractionDigits: 2 })}`; } } }
+        }
+      });
+
+      if (stockValues.length > 0) {
+        new Chart(document.getElementById('stockChart').getContext('2d'), { type: 'doughnut', data: { labels: stockLabels, datasets: [{ data: stockValues, backgroundColor: colors, borderWidth: 0 }] }, options: createDoughnutOptions() });
+        new Chart(document.getElementById('sectorChart').getContext('2d'), { type: 'doughnut', data: { labels: sectorLabels, datasets: [{ data: sectorValues, backgroundColor: colors.slice().reverse(), borderWidth: 0 }] }, options: createDoughnutOptions() });
+      }
+
+      if (trendValues.length > 0) {
+        const ctxLine = document.getElementById('lineChart').getContext('2d');
+        let gradient = ctxLine.createLinearGradient(0, 0, 0, 220); gradient.addColorStop(0, 'rgba(56, 189, 248, 0.4)'); gradient.addColorStop(1, 'rgba(56, 189, 248, 0)');
+        let mddGradient = ctxLine.createLinearGradient(0, 0, 0, 220); mddGradient.addColorStop(0, 'rgba(239, 68, 68, 0)'); mddGradient.addColorStop(1, 'rgba(239, 68, 68, 0.3)');
+
+        const datasets = [{ label: '내 포트폴리오', data: trendValues, borderColor: '#38bdf8', backgroundColor: gradient, fill: true, pointRadius: 0, tension: 0.3, yAxisID: 'y' }];
+        if (spyValues.length > 0) { datasets.push({ label: 'S&P 500 (SPY)', data: spyValues, borderColor: '#94a3b8', backgroundColor: 'transparent', fill: false, pointRadius: 0, borderDash: [5, 5], tension: 0.3, yAxisID: 'y' }); }
+
+        if (mddTrendValues && mddTrendValues.length > 0) {
+          datasets.push({
+            label: 'MDD (최대 낙폭)',
+            data: mddTrendValues,
+            borderColor: '#ef4444',
+            backgroundColor: mddGradient,
+            fill: true,
+            pointRadius: 0,
+            tension: 0.3,
+            yAxisID: 'y1',
+            hidden: !isMddRevealed
+          });
+        }
+
+        if (window.mainLineChart) window.mainLineChart.destroy();
+        window.mainLineChart = new Chart(ctxLine, {
+          type: 'line', data: { labels: trendDates, datasets: datasets },
+          options: {
+            responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: true, position: 'top', labels: { color: '#94a3b8', font: { size: 11, family: 'Pretendard' } } },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    if (ctx.dataset.yAxisID === 'y1') return ` ${ctx.dataset.label}: ${ctx.raw}%`;
+                    return ` ${ctx.dataset.label}: $${ctx.raw.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: '#64748b', maxTicksLimit: 10 } },
+              y: { type: 'linear', display: true, position: 'left', grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
+              y1: { type: 'linear', display: true, position: 'right', grid: { display: false }, ticks: { color: '#ef4444', callback: function (val) { return val + '%'; } } }
+            }
+          }
+        });
+      }
+
+      document.getElementById("principal-usd").innerText = `$${totalPrincipalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      document.getElementById("principal-krw").innerText = `₩${Math.round(totalPrincipalUsd * USD_KRW).toLocaleString()}`;
+      document.getElementById("asset-usd").innerText = `$${totalCurrentUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      document.getElementById("asset-krw").innerText = `₩${Math.round(totalCurrentUsd * USD_KRW).toLocaleString()}`;
+      let totalReturnPct = totalPrincipalUsd > 0 ? ((totalCurrentUsd - totalPrincipalUsd) / totalPrincipalUsd) * 100 : 0;
+      let returnEl = document.getElementById("total-return"); returnEl.innerText = `${totalReturnPct > 0 ? '+' : ''}${totalReturnPct.toFixed(2)}%`;
+      if (totalReturnPct >= 0) { returnEl.style.color = '#39ff14'; returnEl.style.textShadow = '0 0 10px rgba(57, 255, 20, 0.4)'; }
+      else { returnEl.style.color = '#f87171'; returnEl.style.textShadow = 'none'; }
+
+      document.querySelectorAll('.dynamic-badge-chip').forEach(badge => {
+        const text = badge.innerText.trim();
+        if (text === "🇺🇸 미장") { badge.style.backgroundColor = "#311042"; badge.style.color = "#f472b6"; badge.style.borderColor = "#ec4899"; }
+        else if (text === "🪙 코인") { badge.style.backgroundColor = "#422006"; badge.style.color = "#fde047"; badge.style.borderColor = "#eab308"; }
+        else if (text === "🌐 거시") { badge.style.backgroundColor = "#064e3b"; badge.style.color = "#6ee7b7"; badge.style.borderColor = "#10b981"; }
+      });
+    }
+    renderDashboard();
+
+    window.toggleChart = function (chartId) {
+      if (window.innerWidth > 768) return;
+      const container = document.getElementById(chartId + '-container');
+      const icon = container.previousElementSibling.querySelector('.chart-toggle-icon');
+      if (container.classList.contains('collapsed')) { container.classList.remove('collapsed'); icon.innerText = '접기 ▲'; }
+      else { container.classList.add('collapsed'); icon.innerText = '펼치기 ▼'; }
+    }
+
+    if (!(window.innerWidth > 768)) {
+      document.getElementById('stockChart-container').classList.add('collapsed');
+      document.getElementById('sectorChart-container').classList.add('collapsed');
+      document.querySelectorAll('.chart-toggle-icon').forEach(icon => { icon.innerText = '펼치기 ▼'; });
+    }
+
+    function initPagination(itemClassName, paginationContainerId, itemsPerPage = 5) {
+      const items = document.querySelectorAll(`.${itemClassName}`); if (items.length === 0) return;
+      const totalPages = Math.ceil(items.length / itemsPerPage); const container = document.getElementById(paginationContainerId);
+      function showPage(page) {
+        items.forEach((item, index) => { item.style.display = (index >= (page - 1) * itemsPerPage && page * itemsPerPage > index) ? 'flex' : 'none'; });
+        container.innerHTML = '';
+        for (let i = 1; totalPages >= i; i++) {
+          const btn = document.createElement('button'); btn.innerText = i; btn.style.padding = '6px 12px'; btn.style.borderRadius = '6px'; btn.style.cursor = 'pointer'; btn.style.fontWeight = 'bold'; btn.style.fontFamily = "'JetBrains Mono'"; btn.style.transition = '0.2s';
+          btn.style.background = i === page ? '#38bdf8' : '#1e293b'; btn.style.color = i === page ? '#020617' : '#94a3b8'; btn.style.border = '1px solid #334155';
+          if (i !== page) { btn.onmouseover = () => { btn.style.background = '#334155'; btn.style.color = '#f8fafc'; }; btn.onmouseout = () => { btn.style.background = '#1e293b'; btn.style.color = '#94a3b8'; }; }
+          btn.onclick = () => showPage(i); container.appendChild(btn);
+        }
+      }
+      showPage(1);
+    }
+
+    setTimeout(() => {
+      document.querySelectorAll('.stock-news-item').forEach(c => c.classList.add('active-news'));
+      initPagination('active-news', 'stock-news-pagination', 5); initPagination('domestic-item', 'domestic-pagination', 6); initPagination('overseas-item', 'overseas-pagination', 6);
+    }, 100);
+
+    window.openServiceGuideModal = function() {
+      const modal = document.getElementById('service-guide-modal');
+      if (modal) modal.classList.add('active');
+    };
+    window.closeServiceGuideModal = function(event, force = false) {
+      if (force || (event && event.target.id === 'service-guide-modal')) {
+        const modal = document.getElementById('service-guide-modal');
+        if (modal) modal.classList.remove('active');
+      }
+    };
+
+    window.zoomAiReport = function() {
+      const textContainer = document.getElementById('ai-report-text-container');
+      if (!textContainer) return;
+      
+      const reportContent = textContainer.innerHTML;
+      const textVal = textContainer.innerText || "";
+      // 생성 전 기본 안내 텍스트 상태이거나 비어있으면 줌을 띄우지 않고 알림창 제공
+      if (reportContent.includes("상단의 '생성' 버튼을 클릭하세요") || reportContent.trim() === "" || textVal.includes("생성 버튼을 클릭하세요") || textVal.trim() === "") {
+        alert("🤖 AI 리포트를 생성한 후에 크게보기 기능을 이용하실 수 있습니다. 우측 상단의 '생성' 버튼을 클릭해 주세요!");
+        return;
+      }
+      
+      document.getElementById('zoom-modal-body').innerHTML = reportContent;
+      const titleName = typeof currentModalName !== 'undefined' ? currentModalName : '';
+      const titleTicker = typeof currentModalTicker !== 'undefined' ? currentModalTicker : '';
+      document.getElementById('zoom-modal-title').innerText = `🤖 ${titleName} (${titleTicker}) AI 상세 분석 리포트`;
+      document.getElementById('ai-report-zoom-modal').classList.add('active');
+    };
+    window.closeAiReportZoomModal = function(event, force = false) {
+      if (force || (event && event.target.id === 'ai-report-zoom-modal')) {
+        document.getElementById('ai-report-zoom-modal').classList.remove('active');
+      }
+    };
+
+    let isAiBriefingFolded = false;
+    function toggleAiBriefingBox() {
+      const wrapper = document.getElementById('ai-text-wrapper'); const btn = document.getElementById('ai-fold-btn');
+      if (!isAiBriefingFolded) { wrapper.style.display = 'none'; btn.innerText = '펼치기 ▼'; isAiBriefingFolded = true; }
+      else { wrapper.style.display = 'block'; btn.innerText = '접기 ▲'; isAiBriefingFolded = false; }
+    }
+
+    async function requestAIBriefing() {
+      const btn = document.getElementById('ai-btn'); const resultBox = document.getElementById('ai-result-box'); const textElement = document.getElementById('ai-text');
+      const wrapper = document.getElementById('ai-text-wrapper'); const foldBtn = document.getElementById('ai-fold-btn');
+
+      btn.disabled = true; btn.innerHTML = "⏳ AI 퀀트 분석 중..."; resultBox.style.display = "block"; textElement.innerHTML = "실시간 뉴스 연동 및 포트폴리오 정밀 분석 중입니다...";
+      if (wrapper) wrapper.style.display = 'block'; if (foldBtn) foldBtn.innerText = '접기 ▲'; isAiBriefingFolded = false;
+
+      const summary = `총 잔고: ${document.getElementById('asset-usd').innerText} / 수익률: ${document.getElementById('total-return').innerText}`;
+      const titles = Array.from(document.querySelectorAll('.text-collector')).map(el => el.innerText.trim());
+      try {
+        const response = await fetch('/api/ai_briefing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ portfolio_summary: summary, news_titles: titles }) });
+        const data = await response.json(); textElement.innerHTML = data.summary.replace(/\n/g, '<br>'); btn.innerHTML = "✅ 전송 완료!";
+        setTimeout(() => { btn.disabled = false; btn.innerHTML = "⚡ AI 브리핑 & 텔레그램 전송"; }, 3000);
+      } catch (error) { textElement.innerHTML = "통신 실패 (방화벽 차단 확인 필요)"; btn.disabled = false; btn.innerHTML = "⚡ 다시 시도"; }
+    }
+
+    window.loadJureongReport = async function(force = false) {
+      const loading = document.getElementById('jureong-loading');
+      const content = document.getElementById('jureong-report-content');
+      const refreshBtn = document.getElementById('btn-refresh-jureong');
+      
+      const recLoading = document.getElementById('jureong-recommend-loading');
+      const recContent = document.getElementById('jureong-recommend-content');
+      
+      if (loading) loading.style.display = 'flex';
+      if (recLoading) recLoading.style.display = 'flex';
+      if (refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.style.opacity = '0.5';
+      }
+      
+      const reportPromise = fetch(`/api/jureong_report?force=${force}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            content.innerHTML = formatMarkdown(data.report);
+          } else {
+            content.innerHTML = `<div style="color: #f87171; padding: 15px; border: 1px dashed #ef4444; border-radius: 8px;">❌ 리포트 로딩 실패: ${data.error}</div>`;
+          }
+        })
+        .catch(err => {
+          content.innerHTML = `<div style="color: #f87171; padding: 15px; border: 1px dashed #ef4444; border-radius: 8px;">❌ 네트워크 통신 실패</div>`;
+        })
+        .finally(() => {
+          if (loading) loading.style.display = 'none';
+        });
+
+      const recPromise = fetch(`/api/jureong_recommendation?force=${force}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            recContent.innerHTML = formatMarkdown(data.report);
+          } else {
+            recContent.innerHTML = `<div style="color: #f87171; padding: 15px; border: 1px dashed #ef4444; border-radius: 8px;">❌ 추천 로딩 실패: ${data.error}</div>`;
+          }
+        })
+        .catch(err => {
+          recContent.innerHTML = `<div style="color: #f87171; padding: 15px; border: 1px dashed #ef4444; border-radius: 8px;">❌ 네트워크 통신 실패</div>`;
+        })
+        .finally(() => {
+          if (recLoading) recLoading.style.display = 'none';
+        });
+
+      try {
+        await Promise.all([reportPromise, recPromise]);
+      } catch (e) {
+        console.error("Error loading Jureong reports:", e);
+      } finally {
+        if (refreshBtn) {
+          refreshBtn.disabled = false;
+          refreshBtn.style.opacity = '1';
+        }
+      }
+    }
+
+    window.sendJureongReportToTelegram = async function() {
+      const btn = document.getElementById('btn-send-jureong-tg');
+      if (!btn) return;
+      
+      btn.disabled = true;
+      btn.innerHTML = "⏳ 발송 중...";
+      btn.style.opacity = '0.5';
+      
+      try {
+        const response = await fetch('/api/jureong_report/send', { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          btn.innerHTML = "✅ 발송 성공!";
+        } else {
+          btn.innerHTML = "❌ 발송 실패";
+          alert(`발송 오류: ${data.error}`);
+        }
+      } catch (error) {
+        btn.innerHTML = "❌ 통신 오류";
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = "📢 텔레그램 발송";
+          btn.style.opacity = '1';
+        }, 3000);
+      }
+    }
+
+    const marketIndicesData = {{ market_indices | tojson if market_indices else '[]' }};
+    let indexChartInstance = null;
+    function closeIndexChart() { document.getElementById('index-chart-modal').style.display = 'none'; }
+
+    window.toggleDetails = function (event, ticker) {
+      event.stopPropagation(); // 모달 팝업 방지
+      const cleanTicker = ticker.replace(/\./g, '-');
+      const panel = document.getElementById(`details-panel-${cleanTicker}`);
+      const arrow = document.getElementById(`toggle-arrow-${cleanTicker}`);
+      if (panel.style.display === 'none') {
+        panel.style.display = 'flex';
+        arrow.innerText = '▲';
+      } else {
+        panel.style.display = 'none';
+        arrow.innerText = '▼';
+      }
+    }
+
+    let stockChartModalInstance = null; let currentModalTicker = null; let currentModalName = null; let currentChartType = 'line'; let currentChartData = null;
+
+    window.openStockChartModal = function (ticker, name) {
+      currentModalTicker = ticker; currentModalName = name; currentChartType = 'line'; currentChartData = null;
+      document.getElementById('btn-chart-line').classList.add('active'); document.getElementById('btn-chart-candle').classList.remove('active');
+      document.getElementById('stock-chart-modal').style.display = 'flex'; loadStockChartData('1mo');
+      
+      // AI 리포트 영역 리셋
+      const textContainer = document.getElementById('ai-report-text-container');
+      if (textContainer) {
+        textContainer.innerHTML = `
+          <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; color: #64748b; text-align: center; gap: 5px;">
+            <span>🤖 Gemini 실시간 AI IR 리포트</span>
+            <span style="font-size: 10px;">상단의 '생성' 버튼을 클릭하세요.</span>
+          </div>
+        `;
+      }
+
+      // 📊 실시간 퀀트 분석 지표 정보 동적 바인딩
+      const stock = portfolio.find(s => s.ticker === ticker);
+      if (stock) {
+        document.getElementById('modal-rs-badge').innerText = `⚡ ${stock.rs_badge} (${stock.rs_score}점)`;
+        document.getElementById('modal-rs-badge').style.color = stock.rs_color;
+
+        document.getElementById('modal-mtt-badge').innerText = `🏆 ${stock.mtt_badge}`;
+        document.getElementById('modal-mtt-badge').style.color = stock.mtt_color;
+
+        document.getElementById('modal-adx-badge').innerText = stock.adx_badge;
+        document.getElementById('modal-adx-badge').style.color = stock.adx_color;
+
+        document.getElementById('modal-volume-badge').innerText = `🐋 ${stock.volume_status} (${stock.volume_ratio}x)`;
+        document.getElementById('modal-volume-badge').style.color = stock.volume_status_color;
+
+        // 눌림목 골든 시그널 스캔 요청
+        const v4Badge = document.getElementById('modal-v4-badge');
+        v4Badge.innerText = '⏳ 스캔 중...';
+        v4Badge.style.color = '#a78bfa';
+        v4Badge.style.background = '#1e1b4b';
+        v4Badge.style.borderColor = '#4c1d95';
+
+        fetch(`/api/v4_signal/${encodeURIComponent(ticker)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              let signalText = '';
+              if (data.signal === 'GREEN') {
+                signalText = `🟢 적극 매수 (${data.score}점)`;
+                v4Badge.style.color = "#34d399";
+                v4Badge.style.background = "#064e3b";
+                v4Badge.style.borderColor = "#059669";
+              } else if (data.signal === 'RED') {
+                signalText = `🔴 위험 구간 (${data.score}점)`;
+                v4Badge.style.color = "#f87171";
+                v4Badge.style.background = "#451a03";
+                v4Badge.style.borderColor = "#b91c1c";
+              } else {
+                signalText = `🟡 관망/대기 (${data.score}점)`;
+                v4Badge.style.color = "#fbbf24";
+                v4Badge.style.background = "#3c1a10";
+                v4Badge.style.borderColor = "#d97706";
+              }
+              v4Badge.innerText = signalText;
+            } else {
+              v4Badge.innerText = '정보 부족';
+              v4Badge.style.color = "#64748b";
+              v4Badge.style.background = "#1e293b";
+              v4Badge.style.borderColor = "#334155";
+            }
+          })
+          .catch(() => {
+            v4Badge.innerText = '스캔 실패';
+            v4Badge.style.color = "#64748b";
+            v4Badge.style.background = "#1e293b";
+            v4Badge.style.borderColor = "#334155";
+          });
+      }
+    }
+
+    window.setChartType = function (type) {
+      if (currentChartType === type) return; currentChartType = type;
+      if (type === 'line') { document.getElementById('btn-chart-line').classList.add('active'); document.getElementById('btn-chart-candle').classList.remove('active'); }
+      else { document.getElementById('btn-chart-candle').classList.add('active'); document.getElementById('btn-chart-line').classList.remove('active'); }
+      if (currentChartData) { renderTradingViewChart(currentChartData); }
+    }
+
+    window.loadStockChartData = async function (period) {
+      const btnMap = { '1mo': '1M', '3mo': '3M', '6mo': '6M', '1y': '1Y' };
+      document.querySelectorAll('.modal-period-btn').forEach(btn => { btn.classList.toggle('active', btn.innerText === btnMap[period]); });
+      const loadingEl = document.getElementById('stock-modal-loading'); loadingEl.style.display = 'flex';
+      document.getElementById('stock-modal-title').innerText = `${currentModalName} (${currentModalTicker}) 가격 분석`;
+      try {
+        const response = await fetch(`/api/stock_history/${currentModalTicker}?period=${period}`); const data = await response.json();
+        if (data.error) { alert(`❌ 오류: ${data.error}`); closeStockChartModal(); return; }
+        currentChartData = data; renderTradingViewChart(data);
+      } catch (error) { alert("❌ 통신 오류"); closeStockChartModal(); } finally { loadingEl.style.display = 'none'; }
+    }
+
+    function renderTradingViewChart(data) {
+      const container = document.getElementById('stockModalChart'); container.innerHTML = ''; stockChartModalInstance = null;
+      const isLight = document.body.classList.contains('light-theme');
+      const chart = LightweightCharts.createChart(container, {
+        width: container.clientWidth || 650,
+        height: 400,
+        layout: {
+          background: { type: 'solid', color: isLight ? '#ffffff' : '#0f172a' },
+          textColor: isLight ? '#0f172a' : '#94a3b8',
+          fontSize: 11,
+          fontFamily: 'JetBrains Mono'
+        },
+        grid: {
+          vertLines: { color: isLight ? '#f1f5f9' : '#1e293b' },
+          horzLines: { color: isLight ? '#f1f5f9' : '#1e293b' }
+        },
+        rightPriceScale: {
+          borderColor: isLight ? '#e2e8f0' : '#1e293b',
+          textColor: isLight ? '#0f172a' : '#94a3b8'
+        },
+        timeScale: {
+          borderColor: isLight ? '#e2e8f0' : '#1e293b',
+          textColor: isLight ? '#0f172a' : '#94a3b8',
+          timeVisible: true,
+          secondsVisible: false
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+          vertLine: { color: isLight ? '#0284c7' : '#38bdf8', width: 1, style: 1 },
+          horzLine: { color: isLight ? '#0284c7' : '#38bdf8', width: 1, style: 1 }
+        }
+      });
+      if (currentChartType === 'line') {
+        const lineSeries = chart.addLineSeries({ color: '#38bdf8', lineWidth: 3, priceFormat: { type: 'price', minMove: 0.01, formatter: value => data.currency + value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) } }); lineSeries.setData(data.closes);
+      } else {
+        const candleSeries = chart.addCandlestickSeries({ upColor: '#ef4444', downColor: '#3b82f6', borderDownColor: '#3b82f6', borderUpColor: '#ef4444', wickDownColor: '#3b82f6', wickUpColor: '#ef4444', priceFormat: { type: 'price', minMove: 0.01, formatter: value => data.currency + value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) } }); candleSeries.setData(data.candles);
+        chart.addLineSeries({ color: '#fbbf24', lineWidth: 1.5, title: 'MA5', priceLineVisible: false, lastValueVisible: false }).setData(data.ma5);
+        chart.addLineSeries({ color: '#ec4899', lineWidth: 1.5, title: 'MA20', priceLineVisible: false, lastValueVisible: false }).setData(data.ma20);
+        chart.addLineSeries({ color: '#10b981', lineWidth: 2, title: 'MA50', priceLineVisible: false, lastValueVisible: false }).setData(data.ma50);
+        chart.addLineSeries({ color: '#a78bfa', lineWidth: 2, lineStyle: 2, title: 'MA200', priceLineVisible: false, lastValueVisible: false }).setData(data.ma200);
+      }
+      const resizeObserver = new ResizeObserver(entries => { if (entries.length === 0) return; const { width, height } = entries[0].contentRect; chart.resize(width, 400); }); resizeObserver.observe(container); chart.timeScale().fitContent(); stockChartModalInstance = chart;
+    }
+    window.closeStockChartModal = function () { document.getElementById('stock-chart-modal').style.display = 'none'; stockChartModalInstance = null; currentChartData = null; }
+
+    window.fetchStockAiReport = async function() {
+      if (!currentModalTicker) return;
+      
+      const btn = document.getElementById('btn-load-ai-report');
+      const loading = document.getElementById('ai-report-loading');
+      const textContainer = document.getElementById('ai-report-text-container');
+      
+      if (!btn || !loading || !textContainer) return;
+      
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      loading.style.display = 'flex';
+      textContainer.innerHTML = '';
+      
+      try {
+        const response = await fetch(`/api/stock_ai_report?ticker=${currentModalTicker}`);
+        const data = await response.json();
+        
+        if (data.error) {
+          textContainer.innerHTML = `<div style="color: #f87171; padding: 10px; border: 1px dashed #ef4444; border-radius: 6px; margin-top: 10px;">❌ AI 리포트 생성 실패: ${data.error}</div>`;
+        } else {
+          const formatted = formatMarkdown(data.report);
+          textContainer.innerHTML = formatted;
+        }
+      } catch (error) {
+        textContainer.innerHTML = `<div style="color: #f87171; padding: 10px; border: 1px dashed #ef4444; border-radius: 6px; margin-top: 10px;">❌ 통신 오류가 발생했습니다.</div>`;
+      } finally {
+        loading.style.display = 'none';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      }
+    }
+
+    function formatMarkdown(text) {
+      if (!text) return '';
+      // HTML Escape
+      let html = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+        
+      // Bold **text**
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      // Lists * item
+      html = html.replace(/^\*\s+(.*)$/gm, '<li>$1</li>');
+      // Lists - item
+      html = html.replace(/^-\s+(.*)$/gm, '<li>$1</li>');
+      
+      // Let's make it look clean by custom bullet styling
+      html = html.replace(/<li>(.*?)<\/li>/g, '<div style="margin-left: 10px; margin-bottom: 4px;">• $1</div>');
+      
+      // Wrap lines with br
+      html = html.replace(/\n/g, '<br>');
+      
+      // Headers ### 
+      html = html.replace(/###\s+(.*?)<br>/g, '<div style="color: #38bdf8; font-size: 13px; font-weight: bold; margin-top: 15px; margin-bottom: 8px; border-left: 3px solid #38bdf8; padding-left: 8px;">$1</div>');
+      html = html.replace(/##\s+(.*?)<br>/g, '<div style="color: #818cf8; font-size: 14px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #1e293b; padding-bottom: 5px;">$1</div>');
+      
+      return html;
+    }
+  </script>
+
+  <script>
+    function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; fetch('/api/get_settings').then(res => res.json()).then(data => { document.getElementById('tg-chat-id').value = data.telegram_chat_id || ''; }); }
+    function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+    function saveSettings() { const chatId = document.getElementById('tg-chat-id').value.trim(); fetch('/api/save_settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telegram_chat_id: chatId }) }).then(res => res.json()).then(data => { if (data.success) { alert('✅ 텔레그램 설정이 안전하게 저장되었습니다!'); closeSettings(); } }); }
+
+    let efficientFrontierChartInstance = null; let factorRadarChartInstance = null;
+    async function loadQuantDashboard() {
+      const loading = document.getElementById('quant-loading'); const errorView = document.getElementById('quant-error'); const dashView = document.getElementById('quant-dashboard-view');
+      loading.style.display = 'flex'; errorView.style.display = 'none'; dashView.style.display = 'none';
+      try {
+        const response = await fetch('/api/quant_analysis'); const data = await response.json();
+        if (!data.success) { throw new Error(data.error || "퀀트 연산 중 알 수 없는 오류가 발생했습니다."); }
+        loading.style.display = 'none'; dashView.style.display = 'block';
+
+        const opt = data.optimization;
+        if (opt) {
+          document.getElementById('opt-cur-return').innerText = `${opt.current.return.toFixed(2)}%`;
+          document.getElementById('opt-cur-vol').innerText = `${opt.current.volatility.toFixed(2)}%`;
+          document.getElementById('opt-cur-sortino').innerText = `${opt.current.sortino.toFixed(2)}`;
+
+          document.getElementById('opt-max-return').innerText = `${opt.max_sharpe.return.toFixed(2)}%`;
+          document.getElementById('opt-max-vol').innerText = `${opt.max_sharpe.volatility.toFixed(2)}%`;
+          document.getElementById('opt-max-sortino').innerText = `${opt.max_sharpe.sortino.toFixed(2)}`;
+
+          document.getElementById('opt-min-return').innerText = `${opt.min_vol.return.toFixed(2)}%`;
+          document.getElementById('opt-min-vol').innerText = `${opt.min_vol.volatility.toFixed(2)}%`;
+          document.getElementById('opt-min-sortino').innerText = `${opt.min_vol.sortino.toFixed(2)}`;
+
+          const tableBody = document.getElementById('opt-weights-table-body'); tableBody.innerHTML = '';
+          opt.weights.forEach(w => {
+            const tr = document.createElement('tr'); tr.style.borderBottom = '1px solid #1e293b';
+            tr.innerHTML = `
+                          <td style="padding: 8px 4px; font-weight: bold; color: #f8fafc; white-space: nowrap;">${w.name} <span style="font-size:10px; color:#64748b; font-family:'JetBrains Mono';">${w.ticker}</span></td>
+                          <td style="padding: 8px 4px; text-align: right; font-family: 'JetBrains Mono'; color: #94a3b8; white-space: nowrap;">${w.current.toFixed(1)}%</td>
+                          <td style="padding: 8px 4px; text-align: right; font-family: 'JetBrains Mono'; color: #34d399; font-weight: bold; white-space: nowrap;">${w.opt_max_sharpe.toFixed(1)}%</td>
+                          <td style="padding: 8px 4px; text-align: right; font-family: 'JetBrains Mono'; color: #fbbf24; font-weight: bold; white-space: nowrap;">${w.opt_min_vol.toFixed(1)}%</td>
+                          <td style="padding: 8px 4px; text-align: right; font-family: 'Pretendard'; color: ${w.action_color}; font-weight: bold; white-space: nowrap;">${w.action_text}</td>
+                      `;
+            tableBody.appendChild(tr);
+          });
+          renderEfficientFrontierChart(opt.scatter_points, opt.current, opt.max_sharpe, opt.min_vol);
+        }
+
+        const factors = data.factors;
+        if (factors) {
+          renderFactorRadarChart(factors.portfolio);
+          const commentBox = document.getElementById('factor-summary-comment');
+          let evalText = `현재 포트폴리오의 퀀트 스코어는 <strong>가치성(Value): ${factors.portfolio.value}점</strong>, <strong>우량성(Quality): ${factors.portfolio.quality}점</strong>, <strong>모멘텀(Momentum): ${factors.portfolio.momentum}점</strong>, <strong>안정성(Stability): ${factors.portfolio.stability}점</strong> 입니다.<br><br>`;
+          if (factors.portfolio.quality > 75 && factors.portfolio.stability > 70) { evalText += "💎 <strong>[워렌 버핏형 포트폴리오]</strong> 높은 수익성과 우량한 재무 구조를 가졌으며 변동성 방어력이 매우 뛰어난 고품격 포트폴리오입니다. 시장 하락기에도 굳건한 펀더멘탈을 보여줍니다."; }
+          else if (factors.portfolio.value > 75 && factors.portfolio.quality > 60) { evalText += "⚖️ <strong>[가치/배당 우량주 포트폴리오]</strong> 저평가된 우량 종목 비중이 높습니다. 주가의 폭발적 상승은 제한될 수 있으나, 높은 안전 마진과 뛰어난 하방 경직성을 자랑합니다."; }
+          else if (factors.portfolio.momentum > 75) { evalText += "🚀 <strong>[초고속 추세추종 포트폴리오]</strong> 최근 시장을 선도하는 초강세 성장주 중심입니다. 강세장에서는 폭발적인 수익을 내지만, 시장 추세 전환 시 변동성이 급증할 수 있으므로 분할 매도 및 헷징 전략을 추천합니다."; }
+          else { evalText += "⚖️ <strong>[균형 잡힌 포트폴리오]</strong> 각 팩터가 균형 있게 배분되어 있으나, 특정 팩터의 지배적인 매력이 부족할 수 있습니다. 퀀트 자산배분 최적화 비중 제안을 참고하여 포트폴리오의 매력도를 높여보세요."; }
+          commentBox.innerHTML = evalText;
+
+          const listContainer = document.getElementById('individual-factors-list'); listContainer.innerHTML = '';
+          factors.stocks.forEach(s => {
+            const div = document.createElement('div'); div.style.background = 'rgba(255,255,255,0.02)'; div.style.border = '1px solid #1e293b'; div.style.padding = '10px 12px'; div.style.borderRadius = '6px'; div.style.display = 'flex'; div.style.flexDirection = 'column'; div.style.gap = '6px';
+            div.innerHTML = `<div style="display: flex; justify-content: space-between; font-size: 12px;"><span style="font-weight: bold; color: #f8fafc;">${s.name} <span style="font-size:10px; color:#64748b; font-family:'JetBrains Mono';">${s.ticker} (${s.weight_pct}%)</span></span><span style="color: #38bdf8; font-weight: bold;">종합점수: ${((s.value + s.quality + s.momentum + s.stability) / 4).toFixed(1)}점</span></div><div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 10px; text-align: center; color: #94a3b8;"><div style="background: #1e293b; padding: 3px; border-radius: 4px;">가치: <span style="font-weight:bold; color:#f8fafc;">${s.value}</span></div><div style="background: #1e293b; padding: 3px; border-radius: 4px;">우량: <span style="font-weight:bold; color:#f8fafc;">${s.quality}</span></div><div style="background: #1e293b; padding: 3px; border-radius: 4px;">추세: <span style="font-weight:bold; color:#f8fafc;">${s.momentum}</span></div><div style="background: #1e293b; padding: 3px; border-radius: 4px;">안정: <span style="font-weight:bold; color:#f8fafc;">${s.stability}</span></div></div>`;
+            listContainer.appendChild(div);
+          });
+        }
+      } catch (err) { loading.style.display = 'none'; errorView.style.display = 'block'; document.getElementById('quant-error-msg').innerText = err.message; }
+    }
+
+    function renderEfficientFrontierChart(scatterPoints, current, maxSharpe, minVol) {
+      const canvas = document.getElementById('efficientFrontierChart'); if (!canvas) return; const ctx = canvas.getContext('2d');
+      if (efficientFrontierChartInstance) { efficientFrontierChartInstance.destroy(); }
+      efficientFrontierChartInstance = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            { label: '무작위 포트폴리오', data: scatterPoints.map(p => ({ x: p.volatility, y: p.return })), backgroundColor: 'rgba(99, 102, 241, 0.15)', pointRadius: 2, hoverRadius: 3 },
+            { label: '🔵 현재 포트폴리오', data: [{ x: current.volatility, y: current.return }], backgroundColor: '#38bdf8', borderColor: '#f8fafc', borderWidth: 2, pointRadius: 8, pointHoverRadius: 9 },
+            { label: '🟢 최대샤프(추천)', data: [{ x: maxSharpe.volatility, y: maxSharpe.return }], backgroundColor: '#10b981', borderColor: '#f8fafc', borderWidth: 2, pointRadius: 8, pointHoverRadius: 9 },
+            { label: '🟡 최소변동성(안전)', data: [{ x: minVol.volatility, y: minVol.return }], backgroundColor: '#eab308', borderColor: '#f8fafc', borderWidth: 2, pointRadius: 8, pointHoverRadius: 9 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Pretendard', size: 10 } }, position: 'top' }, tooltip: { callbacks: { label: function (context) { return ` ${context.dataset.label}: 리스크(변동성) ${context.raw.x.toFixed(2)}% / 기대수익률 ${context.raw.y.toFixed(2)}%`; } } } }, scales: { x: { title: { display: true, text: '리스크 (연간 변동성 %)', color: '#94a3b8', font: { size: 11 } }, grid: { color: '#1e293b' }, ticks: { color: '#64748b' } }, y: { title: { display: true, text: '연간 기대 수익률 (%)', color: '#94a3b8', font: { size: 11 } }, grid: { color: '#1e293b' }, ticks: { color: '#64748b' } } } }
+      });
+    }
+
+    function renderFactorRadarChart(portfolioFactors) {
+      const canvas = document.getElementById('factorRadarChart'); if (!canvas) return; const ctx = canvas.getContext('2d');
+      if (factorRadarChartInstance) { factorRadarChartInstance.destroy(); }
+      factorRadarChartInstance = new Chart(ctx, {
+        type: 'radar', data: { labels: ['가치평가 (Value)', '이익우량성 (Quality)', '주가추세 (Momentum)', '위험안정성 (Stability)'], datasets: [{ label: '내 포트폴리오 퀀트 팩터', data: [portfolioFactors.value, portfolioFactors.quality, portfolioFactors.momentum, portfolioFactors.stability], backgroundColor: 'rgba(56, 189, 248, 0.2)', borderColor: '#38bdf8', pointBackgroundColor: '#38bdf8', pointBorderColor: '#fff', pointHoverBackgroundColor: '#fff', pointHoverBorderColor: '#38bdf8', borderWidth: 2 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { r: { angleLines: { color: '#1e293b' }, grid: { color: '#1e293b' }, pointLabels: { color: '#94a3b8', font: { size: 11, family: 'Pretendard' } }, ticks: { display: false }, min: 0, max: 100 } } }
+      });
+    }
+  </script>
+
+  <script>
+    let modalChartInstance = null;
+    async function showIndexChart(indexName) {
+      const modal = document.getElementById('index-chart-modal'); 
+      const titleSpan = document.getElementById('modal-index-name'); 
+      const chartArea = document.getElementById('modal-chart-area');
+      titleSpan.innerText = indexName;
+      chartArea.innerHTML = `<div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; color: #94a3b8; font-family: 'Pretendard';"><div style="border: 3px solid #1e293b; border-top: 3px solid #38bdf8; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin-bottom: 12px;"></div>실시간 6개월 캔들스틱 차트 데이터를 수집하는 중...</div>`;
+      modal.classList.add('active');
+      
+      // 🐋 LightweightCharts CDN 폴백 로더 (구글 및 로컬 네트워크 장애 대비)
+      if (typeof LightweightCharts === 'undefined') {
+        try {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.1/lightweight-charts.standalone.production.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        } catch (libErr) {
+          chartArea.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #ef4444; font-family: 'Pretendard';">⚠️ 차트 엔진 라이브러리 로드 실패</div>`;
+          return;
+        }
+      }
+
+      try {
+        const response = await fetch(`/api/market_index_chart?name=${encodeURIComponent(indexName)}`); 
+        const result = await response.json();
+        if (!result.success || !result.data || result.data.length === 0) { 
+          chartArea.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #ef4444; font-family: 'Pretendard';">⚠️ 차트 데이터를 불러올 수 없습니다.</div>`; 
+          return; 
+        }
+        chartArea.innerHTML = '';
+        
+        // clientWidth / clientHeight 타임아웃 레이아웃 갱신 대비 폴백 지정
+        const width = chartArea.clientWidth || 800; 
+        const height = chartArea.clientHeight || 450;
+        const isLight = document.body.classList.contains('light-theme');
+        
+        modalChartInstance = LightweightCharts.createChart(chartArea, { 
+          width: width, 
+          height: height, 
+          layout: {
+            background: { color: isLight ? '#ffffff' : '#020617' },
+            textColor: isLight ? '#0f172a' : '#94a3b8'
+          }, 
+          grid: {
+            vertLines: { color: isLight ? '#f1f5f9' : '#0f172a' },
+            horzLines: { color: isLight ? '#f1f5f9' : '#0f172a' }
+          }, 
+          crosshair: { mode: LightweightCharts.CrosshairMode.Normal }, 
+          timeScale: {
+            borderColor: isLight ? '#e2e8f0' : '#1e293b',
+            textColor: isLight ? '#0f172a' : '#94a3b8',
+            timeVisible: true,
+            secondsVisible: false
+          } 
+        });
+        
+        const candlestickSeries = modalChartInstance.addCandlestickSeries({ 
+          upColor: '#ef4444', 
+          downColor: '#00b0ff', 
+          borderUpColor: '#ef4444', 
+          borderDownColor: '#00b0ff', 
+          wickUpColor: '#ef4444', 
+          wickDownColor: '#00b0ff' 
+        });
+        
+        const formattedData = result.data.map(d => ({ time: d.time, open: d.open, high: d.high, low: d.low, close: d.close })); 
+        candlestickSeries.setData(formattedData);
+        window.addEventListener('resize', resizeModalChart);
+      } catch (e) { 
+        chartArea.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #ef4444; font-family: 'Pretendard';">⚠️ 통신 에러가 발생했습니다: ${e.message}</div>`; 
+      }
+    }
+    function resizeModalChart() { 
+      if (modalChartInstance) { 
+        const chartArea = document.getElementById('modal-chart-area'); 
+        const w = chartArea.clientWidth || 800;
+        const h = chartArea.clientHeight || 450;
+        modalChartInstance.resize(w, h); 
+      } 
+    }
+    function closeIndexModal(event, force = false) {
+      if (force || (event && event.target.id === 'index-chart-modal')) {
+        const modal = document.getElementById('index-chart-modal'); modal.classList.remove('active');
+        if (modalChartInstance) { window.removeEventListener('resize', resizeModalChart); modalChartInstance = null; }
+        document.getElementById('modal-chart-area').innerHTML = '';
+      }
+    }
+
+    // 📸 AI 스크린샷 업로드 파싱 함수
+    async function uploadPortfolioImage() {
+      const fileInput = document.getElementById('portfolio-image');
+      if (!fileInput.files.length) return;
+
+      const file = fileInput.files[0];
+      
+      // 💡 이미지 선택 완료 후 즉시 팝업을 띄워 브라우저의 정상 수신 여부를 확인시킵니다.
+      const sizeKB = (file.size / 1024).toFixed(1);
+      if (!confirm(`📷 이미지 분석 요청이 감지되었습니다.\n\n파일명: ${file.name} (${sizeKB} KB)\n\n이 증권사 계좌 이미지를 AI로 즉시 분석하시겠습니까?`)) {
+        fileInput.value = '';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const statusEl = document.getElementById('upload-status');
+      statusEl.innerHTML = '<span style="color: #38bdf8; font-weight: bold;">⏳ AI가 계좌 이미지를 읽고 분석 중입니다 (약 5~10초 소요)...</span>';
+      
+      document.body.style.cursor = 'wait'; // UX 로딩 커서 활성화
+
+      try {
+        const response = await fetch('/api/upload_portfolio', { method: 'POST', body: formData });
+        const data = await response.json();
+
+        if (data.success) {
+          statusEl.innerHTML = `<span style="color: #34d399; font-weight: bold;">✅ ${data.count}개 종목이 성공적으로 자동 추가되었습니다!</span>`;
+          alert(`🎉 AI 계좌 인식 성공!\n총 ${data.count}개 종목이 포트폴리오에 자동 입력되었습니다.`);
+          location.reload();
+        } else {
+          statusEl.innerHTML = `<span style="color: #f87171;">❌ 오류: ${data.error}</span>`;
+          alert(`❌ AI 이미지 인식 실패\n\n이유: ${data.error}`);
+        }
+      } catch (e) {
+        statusEl.innerHTML = `<span style="color: #f87171;">❌ 통신 오류가 발생했습니다.</span>`;
+        alert(`❌ 통신 에러가 발생했습니다. 네트워크를 확인하세요.`);
+      } finally {
+        document.body.style.cursor = 'default';
+        if (fileInput) fileInput.value = ''; // 💡 동일 파일 재업로드 동작 보장을 위해 인풋 값을 초기화
+      }
+    }
+
+    // // 💡 핵심 추가: 진행 중인 통신을 기억하고 취소하기 위한 '글로벌 통제기'
+    let currentAiController = null;
+
+    async function analyzeCurrentStock(event) {
+      const ticker = document.getElementById('real-ticker').value.trim();
+      if (!ticker) {
+        alert('종목 검색창에서 분석을 원하는 종목을 먼저 검색하거나 티커를 입력해주세요!');
+        return;
+      }
+
+      // 💡 핵심 추가: 기존에 돌아가고 있던 AI 분석이 있다면 즉시 통신 강제 절단! (꼬임 원천 차단)
+      if (currentAiController) {
+        currentAiController.abort();
+      }
+      // 새로운 통제기 발급
+      currentAiController = new AbortController();
+
+      const btn = event ? event.currentTarget : document.querySelector('button[onclick*="analyzeCurrentStock"]');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '⏳ 제작 중...';
+      btn.disabled = true;
+
+      const modal = document.getElementById('ai-report-modal');
+      const contentArea = document.getElementById('report-modal-content');
+
+      // 모달창 띄우고 로딩 애니메이션 넣기 (유저님이 짜신 훌륭한 코드 그대로 유지!)
+      document.getElementById('report-modal-title').innerText = `${ticker} AI 진단 진행 중`;
+      contentArea.innerHTML = `
+              <div style="text-align:center; padding:40px 20px; color:#94a3b8;">
+                  <div style="font-size:40px; margin-bottom:15px; animation: spin 1.5s linear infinite;">⚙️</div>
+                  <div style="font-weight: bold; color: #38bdf8; font-size: 16px; margin-bottom: 8px;">진단 리포트를 열심히 굽고 있습니다!</div>
+                  <div style="font-size: 13px; color: #64748b;">(통신 상태에 따라 약 5~10초 정도 소요됩니다)</div>
+              </div>`;
+      modal.classList.add('active');
+
+      // 15초 지나면 현재 통제기를 강제 종료시키는 타임아웃
+      const timeoutId = setTimeout(() => currentAiController.abort(), 15000);
+
+      try {
+        const response = await fetch('/api/analyze_stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticker }),
+          signal: currentAiController.signal // 💡 새로 만든 신호기 연결
+        });
+        clearTimeout(timeoutId);
+
+        const data = await response.json();
+
+        if (data.success) {
+          const formatted = formatMarkdown(data.analysis);
+
+          // 💡 백엔드가 돌려준 정확한 이름과 티커로 제목 덮어쓰기
+          document.getElementById('report-modal-title').innerText = `[${data.ticker}] ${data.name} AI 종합 진단 리포트`;
+          contentArea.innerHTML = `<div style="background: rgba(2, 6, 23, 0.4); padding: 20px; border-radius: 8px; border: 1px solid #1e293b; font-family: 'Pretendard', sans-serif;">${formatted}</div>`;
+        } else {
+          contentArea.innerHTML = `
+                      <div style="text-align:center; padding: 30px;">
+                          <div style="font-size: 40px; margin-bottom: 10px;">❌</div>
+                          <div style="color: #f87171; font-weight: bold; font-size: 16px; margin-bottom: 10px;">분석 중 서버 오류가 발생했습니다.</div>
+                          <div style="color: #94a3b8; font-size: 13px;">에러 내용: ${data.error}</div>
+                      </div>`;
+        }
+      } catch (e) {
+        clearTimeout(timeoutId);
+
+        // 💡 핵심 추가: 유저가 다른 버튼을 눌러서 '이전 요청이 강제 취소'된 거라면, 에러 메시지를 띄우지 않고 조용히 무시함
+        if (e.name === 'AbortError' && !timeoutId) {
+          return;
+        }
+
+        let errMsg = e.name === 'AbortError'
+          ? "응답 시간이 초과되었습니다 (15초).<br>API 서버 지연이므로 잠시 후 다시 시도해 주세요."
+          : "네트워크 통신 오류가 발생했습니다.";
+
+        contentArea.innerHTML = `
+                  <div style="text-align:center; padding: 30px;">
+                      <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
+                      <div style="color: #f87171; font-weight: bold; font-size: 16px; margin-bottom: 10px;">리포트 생성 실패</div>
+                      <div style="color: #94a3b8; font-size: 13px; line-height: 1.5;">${errMsg}</div>
+                  </div>`;
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // AI 리포트 창 닫기 함수 (기존과 동일)
+    function closeAiReportModal(event, force = false) {
+      if (force || (event && event.target.id === 'ai-report-modal')) {
+        document.getElementById('ai-report-modal').classList.remove('active');
+      }
+    }
+
+    // ========================================================
+    // 🎯 S&P500 퀀트 스크리너 프론트엔드 비동기 엔진
+    // ========================================================
+    let currentPreset = 'custom';
+    let screenerRefreshInterval = null;
+
+    function initScreener() {
+      // DB 종목 개수 및 상태 조회
+      fetch('/api/quant_screener/refresh_status')
+        .then(res => res.json())
+        .then(status => {
+          document.getElementById('screener-last-sync').innerText = status.last_updated || '동기화 기록 없음';
+          
+          if (status.status === 'running') {
+            startTrackingScreenerRefresh();
+          } else {
+            // 초기 시드 데이터 개수 반영
+            document.getElementById('screener-db-count').innerText = `${status.current || 50}개 종목 캐시됨`;
+          }
+        })
+        .catch(err => console.error("Screener status fetch err:", err));
+
+      loadScreenerData();
+    }
+
+    function selectPreset(preset) {
+      currentPreset = preset;
+      
+      // 프리셋 카드 액티브 토글
+      const cards = document.querySelectorAll('.preset-card');
+      cards.forEach(card => card.classList.remove('active'));
+      
+      let pId = 'preset-custom';
+      if (preset === 'super_value') pId = 'preset-super-value';
+      else if (preset === 'undervalued') pId = 'preset-undervalued';
+      else if (preset === 'high_roe') pId = 'preset-high-roe';
+      else if (preset === 'high_dividend') pId = 'preset-high-dividend';
+      
+      document.getElementById(pId).classList.add('active');
+
+      // 커스텀 슬라이더 제어 패널은 프리셋이 'custom'일 때만 활성화
+      const sliderPanel = document.getElementById('custom-slider-panel');
+      if (preset === 'custom') {
+        sliderPanel.style.display = 'block';
+      } else {
+        sliderPanel.style.display = 'none';
+      }
+
+      loadScreenerData();
+    }
+
+    function updateSliderVal(type, val) {
+      if (type === 'pe') {
+        document.getElementById('val-pe').innerText = parseFloat(val).toFixed(1);
+      } else if (type === 'pbr') {
+        document.getElementById('val-pbr').innerText = parseFloat(val).toFixed(1);
+      } else if (type === 'roe') {
+        document.getElementById('val-roe').innerText = parseFloat(val).toFixed(1) + ' %';
+      } else if (type === 'div') {
+        document.getElementById('val-div').innerText = parseFloat(val).toFixed(1) + ' %';
+      }
+      
+      // 슬라이더 조절 시 실시간 필터링 실행
+      if (currentPreset === 'custom') {
+        loadScreenerData();
+      }
+    }
+
+    function resetScreenerSliders() {
+      document.getElementById('range-pe').value = 50;
+      document.getElementById('range-pbr').value = 15;
+      document.getElementById('range-roe').value = 0;
+      document.getElementById('range-div').value = 0;
+
+      document.getElementById('val-pe').innerText = '50.0';
+      document.getElementById('val-pbr').innerText = '15.0';
+      document.getElementById('val-roe').innerText = '0.0 %';
+      document.getElementById('val-div').innerText = '0.0 %';
+
+      if (currentPreset === 'custom') {
+        loadScreenerData();
+      }
+    }
+
+    function loadScreenerData() {
+      const resultBody = document.getElementById('screener-result-body');
+      resultBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:#94a3b8;"><div style="display:inline-block; width:20px; height:20px; border:2px solid #38bdf8; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin-right:8px; vertical-align:middle;"></div>데이터 조회 중...</td></tr>`;
+
+      const requestPayload = {
+        strategy: currentPreset
+      };
+
+      if (currentPreset === 'custom') {
+        requestPayload.pe_max = parseFloat(document.getElementById('range-pe').value);
+        requestPayload.pbr_max = parseFloat(document.getElementById('range-pbr').value);
+        requestPayload.roe_min = parseFloat(document.getElementById('range-roe').value);
+        requestPayload.div_min = parseFloat(document.getElementById('range-div').value);
+      }
+
+      fetch('/api/quant_screener', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestPayload)
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) {
+          resultBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:#f87171;">⚠️ 오류: ${res.error}</td></tr>`;
+          return;
+        }
+
+        const stocks = res.data || [];
+        if (stocks.length === 0) {
+          resultBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:40px; color:#94a3b8;">🎯 조건에 매칭되는 S&P500 주식이 없습니다. 임계값을 완화해 보세요.</td></tr>`;
+          return;
+        }
+
+        let html = '';
+        stocks.forEach(stock => {
+          const peVal = stock.pe !== null && stock.pe !== undefined ? parseFloat(stock.pe) : null;
+          const pbrVal = stock.pbr !== null && stock.pbr !== undefined ? parseFloat(stock.pbr) : null;
+          const roeVal = stock.roe !== null && stock.roe !== undefined ? parseFloat(stock.roe) : null;
+          const divVal = stock.div_yield !== null && stock.div_yield !== undefined ? parseFloat(stock.div_yield) : null;
+          const priceVal = stock.price !== null && stock.price !== undefined ? parseFloat(stock.price) : null;
+
+          const peText = peVal !== null ? peVal.toFixed(2) : '-';
+          const pbrText = pbrVal !== null ? pbrVal.toFixed(2) : '-';
+          const roeText = roeVal !== null ? roeVal.toFixed(2) + '%' : '-';
+          const divText = divVal !== null ? divVal.toFixed(2) + '%' : '-';
+          const priceText = priceVal !== null ? '$' + priceVal.toFixed(2) : '-';
+          const syncText = stock.updated_at || '-';
+
+          const roeClass = roeVal !== null && roeVal >= 15 ? 'badge-favorable' : 'badge-normal';
+          const peClass = peVal !== null && peVal > 0 && peVal <= 10 ? 'badge-favorable' : 'badge-normal';
+          const pbrClass = pbrVal !== null && pbrVal > 0 && pbrVal <= 1.5 ? 'badge-favorable' : 'badge-normal';
+
+          html += `
+            <tr>
+              <td style="font-family:'JetBrains Mono'; font-weight:bold; color:#38bdf8;">${stock.ticker}</td>
+              <td style="font-weight:600;">${stock.name}</td>
+              <td style="font-family:'JetBrains Mono'; color:#38bdf8; font-weight:500;">${priceText}</td>
+              <td><span class="${peClass}">${peText}</span></td>
+              <td><span class="${pbrClass}">${pbrText}</span></td>
+              <td><span class="${roeClass}">${roeText}</span></td>
+              <td style="font-family:'JetBrains Mono'; color:#38bdf8;">${divText}</td>
+              <td style="font-size:11px; color:#64748b;">${syncText}</td>
+              <td style="text-align:center;">
+                <button class="btn-action-small" onclick="openScreenerAddModal('${stock.ticker}', '${stock.name.replace(/'/g, "\\'")}', ${priceVal || 100})">🛒 추가</button>
+              </td>
+            </tr>
+          `;
+        });
+        resultBody.innerHTML = html;
+      })
+      .catch(err => {
+        console.error("Quant load err:", err);
+        resultBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:#f87171;">⚠️ 네트워크 오류가 발생했습니다.</td></tr>`;
+      });
+    }
+
+    function triggerCacheRefresh() {
+      const btn = document.getElementById('btn-sync-screener');
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳ 동기화 가동 중...</span>`;
+
+      fetch('/api/quant_screener/refresh', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.success) {
+            alert(data.error);
+            btn.disabled = false;
+            btn.innerHTML = `<span>🔄 실시간 전체 동기화</span>`;
+            return;
+          }
+          startTrackingScreenerRefresh();
+        })
+        .catch(err => {
+          console.error(err);
+          btn.disabled = false;
+          btn.innerHTML = `<span>🔄 실시간 전체 동기화</span>`;
+        });
+    }
+
+    function startTrackingScreenerRefresh() {
+      document.getElementById('screener-progress-container').style.display = 'block';
+      document.getElementById('btn-sync-screener').disabled = true;
+      document.getElementById('btn-sync-screener').innerHTML = `<span>⏳ 수집 가동 중...</span>`;
+
+      if (screenerRefreshInterval) clearInterval(screenerRefreshInterval);
+      screenerRefreshInterval = setInterval(trackRefreshStatus, 1500);
+    }
+
+    function trackRefreshStatus() {
+      fetch('/api/quant_screener/refresh_status')
+        .then(res => res.json())
+        .then(status => {
+          const current = status.current || 0;
+          const total = status.total || 1;
+          const pct = Math.round((current / total) * 100);
+          
+          document.getElementById('screener-progress-percent').innerText = `${pct}%`;
+          document.getElementById('screener-progress-bar').style.width = `${pct}%`;
+          document.getElementById('screener-progress-text').innerText = `yfinance에서 S&P500 수집 진행 중... (${current}/${total})`;
+          document.getElementById('screener-db-count').innerText = `${current}개 종목 캐시됨`;
+          
+          if (status.last_updated) {
+            document.getElementById('screener-last-sync').innerText = status.last_updated;
+          }
+
+          if (status.status === 'completed' || status.status === 'error' || status.status === 'idle') {
+            clearInterval(screenerRefreshInterval);
+            document.getElementById('screener-progress-container').style.display = 'none';
+            
+            const btn = document.getElementById('btn-sync-screener');
+            btn.disabled = false;
+            btn.innerHTML = `<span>🔄 실시간 전체 동기화</span>`;
+            
+            if (status.status === 'completed') {
+              alert('🎉 S&P500 데이터 동기화가 성공적으로 완료되었습니다!');
+            } else if (status.status === 'error') {
+              alert(`🚨 동기화 오류 발생: ${status.error_message}`);
+            }
+            
+            loadScreenerData();
+          }
+        })
+        .catch(err => console.error("Track progress fail:", err));
+    }
+
+    function openScreenerAddModal(ticker, name, currentPrice) {
+      document.getElementById('screener-add-ticker-display').value = `${ticker} (${name})`;
+      document.getElementById('screener-add-name-hidden').value = name;
+      document.getElementById('screener-add-price').value = currentPrice ? currentPrice.toFixed(2) : 100.00;
+      document.getElementById('screener-add-shares').value = 10;
+      
+      const modal = document.getElementById('screener-add-modal');
+      modal.style.display = 'flex';
+    }
+
+    function closeScreenerAddModal() {
+      document.getElementById('screener-add-modal').style.display = 'none';
+    }
+
+    function submitScreenerAdd() {
+      const displayVal = document.getElementById('screener-add-ticker-display').value;
+      const ticker = displayVal.split(' ')[0];
+      const name = document.getElementById('screener-add-name-hidden').value;
+      const shares = parseFloat(document.getElementById('screener-add-shares').value);
+      const avgPrice = parseFloat(document.getElementById('screener-add-price').value);
+
+      if (!shares || shares <= 0 || !avgPrice || avgPrice <= 0) {
+        alert('올바른 수량과 매수 평단가를 입력해 주세요.');
+        return;
+      }
+
+      const payload = {
+        ticker: ticker,
+        name: name,
+        shares: shares,
+        avgPrice: avgPrice,
+        market: 'US'
+      };
+
+      fetch('/api/quant_screener/add_to_portfolio', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          alert(`오류: ${data.error}`);
+          return;
+        }
+
+        alert(`🎉 ${ticker} 종목이 포트폴리오에 성공적으로 추가되었습니다! 대시보드에서 확인해 보세요.`);
+        closeScreenerAddModal();
+        window.location.reload();
+      })
+      .catch(err => {
+        console.error("Add portfolio err:", err);
+        alert('네트워크 통신 오류가 발생했습니다.');
+      });
+    }
+
+    // 📊 증시지수 카드 클릭 및 이미지 업로드 이벤트 바인딩 (인라인 이벤트 제거 및 readyState 레이스 컨디션 해결)
+    function initDashboardEvents() {
+      // 1. 지수 카드 클릭 바인딩
+      document.querySelectorAll('.index-card').forEach(card => {
+        card.style.pointerEvents = 'auto'; // 마우스/터치 클릭 물리적 보장
+        card.onclick = (e) => {
+          const indexName = card.getAttribute('data-index-name');
+          if (indexName) {
+            showIndexChart(indexName);
+          }
+        };
+      });
+
+      // 2. 이미지 업로드 이벤트 바인딩 (인라인 onchange 제거 후 강인하게 동적 바인딩)
+      const fileInput = document.getElementById('portfolio-image');
+      if (fileInput) {
+        fileInput.addEventListener('change', uploadPortfolioImage);
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initDashboardEvents);
+    } else {
+      initDashboardEvents();
+    }
+
+    // ☀️ 테마 토글 및 갱신 로직 추가
+    window.toggleTheme = function() {
+      const body = document.body;
+      const btn = document.getElementById('theme-toggle-btn');
+      if (body.classList.contains('light-theme')) {
+        body.classList.remove('light-theme');
+        localStorage.setItem('theme', 'dark');
+        if (btn) btn.innerText = '☀️';
+      } else {
+        body.classList.add('light-theme');
+        localStorage.setItem('theme', 'light');
+        if (btn) btn.innerText = '🌙';
+      }
+      updateChartThemes();
+    };
+
+    function updateChartThemes() {
+      const isLight = document.body.classList.contains('light-theme');
+      const textColor = isLight ? '#0f172a' : '#94a3b8';
+      
+      if (window.Chart) {
+        Chart.defaults.color = textColor;
+        Object.values(Chart.instances).forEach(chartInstance => {
+          if (chartInstance.options.plugins && chartInstance.options.plugins.legend && chartInstance.options.plugins.legend.labels) {
+            chartInstance.options.plugins.legend.labels.color = textColor;
+          }
+          if (chartInstance.options.scales) {
+            Object.values(chartInstance.options.scales).forEach(scale => {
+              if (scale.ticks) scale.ticks.color = textColor;
+              if (scale.grid) scale.grid.color = isLight ? '#cbd5e1' : '#1e293b';
+            });
+          }
+          chartInstance.update();
+        });
+      }
+    }
+    
+    // 페이지 로드 시 즉시 설정 복구 (깜빡임 방지용 FOUC 해결)
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+      }
+    })();
+    
+    // DOM 로드 완료 후 버튼 상태와 차트 테마 싱크
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('theme');
+      const btn = document.getElementById('theme-toggle-btn');
+      if (savedTheme === 'light') {
+        if (btn) btn.innerText = '🌙';
+        setTimeout(updateChartThemes, 500);
+      } else {
+        if (btn) btn.innerText = '☀️';
+      }
+    });
+  </script>
+
+</body>
+
+</html>

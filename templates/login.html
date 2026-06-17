@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>JURUNG QUANT - Login</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Pretendard:wght@400;600;700&display=swap');
+    body { background-color: #020617; color: #f8fafc; font-family: 'Pretendard', sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .auth-container { background: #0f172a; border: 1px solid #1e293b; padding: 40px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; }
+    h1 { font-family: 'JetBrains Mono'; color: #38bdf8; margin-bottom: 30px; font-size: 28px; }
+    .input-group { margin-bottom: 20px; text-align: left; }
+    .input-group label { display: block; margin-bottom: 8px; color: #94a3b8; font-size: 13px; font-weight: bold; }
+    .input-group input { width: 100%; background: #1e293b; border: 1px solid #334155; color: white; padding: 12px; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 15px; }
+    .input-group input:focus { outline: none; border-color: #38bdf8; }
+    .btn { width: 100%; background: #38bdf8; color: #020617; border: none; padding: 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; transition: 0.2s; font-family: 'Pretendard'; }
+    .btn:hover { background: #0ea5e9; transform: translateY(-1px); }
+    .btn-secondary { background: transparent; color: #38bdf8; border: 1px solid #38bdf8; margin-top: 15px; }
+    .btn-secondary:hover { background: rgba(56, 189, 248, 0.1); }
+    .error-msg { color: #f87171; font-size: 14px; margin-bottom: 20px; text-align: left; }
+    .flash-msg { color: #4ade80; font-size: 14px; margin-bottom: 20px; text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <h1>JURUNG QUANT</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="{% if category == 'error' %}error-msg{% else %}flash-msg{% endif %}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form id="auth-form" method="POST" action="/login">
+      <div class="input-group">
+        <label>Username (아이디)</label>
+        <input type="text" name="username" required>
+      </div>
+      <div class="input-group">
+        <label>Password (비밀번호)</label>
+        <input type="password" name="password" required>
+      </div>
+      
+      <div class="input-group" style="margin-top: -10px; margin-bottom: 20px;">
+        <label style="display: flex; align-items: center; cursor: pointer; text-transform: none;">
+          <input type="checkbox" name="remember" style="width: auto; margin-right: 8px;">
+          <span style="font-size: 13px; color: #94a3b8;">자동 로그인 (30일 유지)</span>
+        </label>
+      </div>
+      
+      <button type="submit" class="btn" id="submit-btn">접속 (Login)</button>
+      <button type="button" class="btn btn-secondary" onclick="toggleMode()" id="toggle-btn">계정이 없으신가요? 회원가입</button>
+    </form>
+  </div>
+
+  <script>
+    let isLogin = true;
+    function toggleMode() {
+      isLogin = !isLogin;
+      const form = document.getElementById('auth-form');
+      const submitBtn = document.getElementById('submit-btn');
+      const toggleBtn = document.getElementById('toggle-btn');
+      
+      if (isLogin) {
+        form.action = '/login';
+        submitBtn.innerText = '접속 (Login)';
+        toggleBtn.innerText = '계정이 없으신가요? 회원가입';
+      } else {
+        form.action = '/register';
+        submitBtn.innerText = '계정 생성 (Register)';
+        toggleBtn.innerText = '이미 계정이 있으신가요? 로그인';
+      }
+    }
+  </script>
+</body>
+</html>

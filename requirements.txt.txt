@@ -1,0 +1,5 @@
+Flask
+yfinance
+google-genai
+Flask-SQLAlchemy
+psycopg2-binary
